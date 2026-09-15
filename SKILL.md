@@ -4,6 +4,10 @@
 
 Control multi-step AI work so the agent continues autonomously through safe, available actions instead of repeatedly waiting for the user to say "next".
 
+## Execution policy dependency
+
+Apply `sazan-efficient-operator` as the execution-efficiency layer for this skill. Minimize unnecessary token use, repeated context, narration, and interruptions while preserving all verification, security, recovery, documentation, and evidence requirements defined here. If efficiency and correctness conflict, correctness and evidence win.
+
 ## Operating loop
 
 1. INTAKE — lock the user's actual end goal, constraints, evidence requirements, and allowed tools.
