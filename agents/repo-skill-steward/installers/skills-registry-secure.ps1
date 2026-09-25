@@ -5,6 +5,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+if (-not [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
+    throw "This installer is for Windows only."
+}
 $Version = "v0.5.50"
 $Repo = "nikships/skills-registry"
 
