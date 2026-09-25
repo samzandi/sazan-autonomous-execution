@@ -1,0 +1,30 @@
+version: 1
+
+repository_record:
+  full_name: string
+  visibility: public|private|internal
+  purpose: string
+  default_branch: string
+  archived: boolean
+  fork: boolean
+  upstream: string|null
+  update_strategy: manual|dependency-bot|upstream-sync|frozen
+  lab_required: boolean
+  security_tier: low|medium|high
+  last_checked_at: datetime|null
+  last_verified_commit: string|null
+  notes: string|null
+
+candidate_record:
+  name: string
+  type: skill|agent|tool|dependency|upstream-change
+  source: string
+  version_or_commit: string
+  license: string|null
+  maintenance_status: active|stable|stale|unknown
+  risk: low|medium|high
+  duplicate_of: string|null
+  lab_status: pending|passed|failed|blocked
+  decision: pending|promote|reject|hold
+  evidence: list
+  rollback: string|null
