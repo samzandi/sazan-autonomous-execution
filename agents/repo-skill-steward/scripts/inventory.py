@@ -126,7 +126,12 @@ class GitHubClient:
     def list_contents(self, full_name: str, path: str = "") -> list[dict[str, Any]]:
         encoded_path = urllib.parse.quote(path.strip("/"), safe="/")
         suffix = f"/{encoded_path}" if encoded_path else ""
-        payload = self.get_json(f"/repos/{full_name}/contents{suffix}")
+        try:
+            payload = self.get_json(f"/repos/{full_name}/contents{suffix}")
+        except RuntimeError as exc:
+            if not encoded_path and "This repository is empty." in str(exc):
+                return []
+            raise
         return payload if isinstance(payload, list) else []
 
 
