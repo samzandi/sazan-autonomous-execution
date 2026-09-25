@@ -144,3 +144,39 @@ jobs:
               with open(os.path.join(base, name), encoding="utf-8") as handle:
                   json.load(handle)
           PY
+
+
+  skills-registry-digest-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download pinned release asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/skills-registry-lab"
+          cd "$RUNNER_TEMP/skills-registry-lab"
+          curl -fsSL --retry 3 -o skills-registry.tar.gz             https://github.com/nikships/skills-registry/releases/download/v0.5.50/skills-registry_linux_amd64.tar.gz
+
+      - name: Verify GitHub release digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/skills-registry-lab"
+          echo "e863de8a1abfb50c260e2df1fb21c25aa33075a8555673dcd01a2f08d2bfb75c9  skills-registry.tar.gz" | sha256sum -c -
+
+      - name: Extract verified binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/skills-registry-lab"
+          tar -xzf skills-registry.tar.gz skills-registry
+          test -f skills-registry
+          chmod +x skills-registry
+
+      - name: Run read-only binary smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/skills-registry-lab"
+          ./skills-registry --version
+          ./skills-registry --help >/dev/null
