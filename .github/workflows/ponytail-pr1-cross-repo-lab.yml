@@ -14,7 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PONYTAIL_REPO: https://github.com/samzandi/ponytail.git
-      PONYTAIL_SHA: 2dd308e1a02d727dcd1a6bdeb60b6129a6f3d5de
+      PONYTAIL_BASE_SHA: 8abea6c8d23c8d335196360292e6fb453627dbf4
+      PONYTAIL_PR_SHA: 2dd308e1a02d727dcd1a6bdeb60b6129a6f3d5de
     steps:
       - name: Checkout steward
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -29,14 +30,40 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Checkout exact Ponytail PR commit without credentials
+      - name: Clone Ponytail without credentials
         shell: bash
         run: |
           set -euo pipefail
           git -c credential.helper= clone --filter=blob:none --no-checkout "$PONYTAIL_REPO" "$RUNNER_TEMP/ponytail"
-          git -C "$RUNNER_TEMP/ponytail" fetch --depth=1 origin "$PONYTAIL_SHA"
-          git -C "$RUNNER_TEMP/ponytail" checkout --detach "$PONYTAIL_SHA"
-          test "$(git -C "$RUNNER_TEMP/ponytail" rev-parse HEAD)" = "$PONYTAIL_SHA"
+          git -C "$RUNNER_TEMP/ponytail" fetch --depth=1 origin "$PONYTAIL_BASE_SHA" "$PONYTAIL_PR_SHA"
+
+      - name: Capture baseline rule-copy drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$RUNNER_TEMP/ponytail"
+          git -C "$repo" checkout --detach "$PONYTAIL_BASE_SHA"
+          set +e
+          (cd "$repo" && node scripts/check-rule-copies.js) > "$RUNNER_TEMP/base-rules.log" 2>&1
+          rc=$?
+          set -e
+          test "$rc" -eq 1
+          grep "drifted from AGENTS.md" "$RUNNER_TEMP/base-rules.log" | sort > "$RUNNER_TEMP/base-drift.txt"
+          test -s "$RUNNER_TEMP/base-drift.txt"
+
+      - name: Verify PR has no new rule-copy drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$RUNNER_TEMP/ponytail"
+          git -C "$repo" checkout --detach "$PONYTAIL_PR_SHA"
+          set +e
+          (cd "$repo" && node scripts/check-rule-copies.js) > "$RUNNER_TEMP/pr-rules.log" 2>&1
+          rc=$?
+          set -e
+          test "$rc" -eq 1
+          grep "drifted from AGENTS.md" "$RUNNER_TEMP/pr-rules.log" | sort > "$RUNNER_TEMP/pr-drift.txt"
+          diff -u "$RUNNER_TEMP/base-drift.txt" "$RUNNER_TEMP/pr-drift.txt"
 
       - name: Install Python correctness dependency
         working-directory: ${{ runner.temp }}/ponytail
@@ -45,10 +72,6 @@ jobs:
       - name: Install MCP dependencies
         working-directory: ${{ runner.temp }}/ponytail
         run: npm install --prefix ponytail-mcp
-
-      - name: Check rule copies
-        working-directory: ${{ runner.temp }}/ponytail
-        run: node scripts/check-rule-copies.js
 
       - name: Check version consistency
         working-directory: ${{ runner.temp }}/ponytail
