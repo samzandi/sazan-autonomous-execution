@@ -1,0 +1,42 @@
+name: Repo Skill Steward CI
+
+on:
+  pull_request:
+    paths:
+      - "agents/repo-skill-steward/**"
+      - "tests/repo-skill-steward-scenarios.md"
+      - ".github/workflows/repo-skill-steward-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Compile inventory scanner
+        run: python3 -m py_compile agents/repo-skill-steward/scripts/inventory.py
+
+      - name: Check CLI help
+        run: python3 agents/repo-skill-steward/scripts/inventory.py --help >/dev/null
+
+      - name: Verify missing-token safety
+        shell: bash
+        run: |
+          set +e
+          env -u GITHUB_TOKEN python3 agents/repo-skill-steward/scripts/inventory.py >/tmp/steward.out 2>/tmp/steward.err
+          code=$?
+          set -e
+          test "$code" -eq 2
+          grep -q "GITHUB_TOKEN is required." /tmp/steward.err
+
+      - name: Verify safety defaults
+        shell: bash
+        run: |
+          grep -q "direct_main_updates: false" agents/repo-skill-steward/sources.yml
+          grep -q "persist_private_repo_inventory: false" agents/repo-skill-steward/sources.yml
+          grep -q "install_status: not-installed" agents/repo-skill-steward/candidate-lock.yml
