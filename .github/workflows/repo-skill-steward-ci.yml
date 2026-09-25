@@ -49,3 +49,39 @@ jobs:
           grep -q "persist_private_repo_inventory: false" agents/repo-skill-steward/sources.yml
           grep -q "install_status: not-installed" agents/repo-skill-steward/candidate-lock.yml
           grep -q "auto_merge.*False" agents/repo-skill-steward/scripts/classify.py
+
+  secure-installer-posix-dryrun:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Verify POSIX installer dry-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh agents/repo-skill-steward/installers/skills-registry-secure.sh > "$RUNNER_TEMP/registry-plan.json"
+          python3 - <<'PY'
+          import json, os
+          path = os.path.join(os.environ["RUNNER_TEMP"], "registry-plan.json")
+          with open(path, encoding="utf-8") as handle:
+              plan = json.load(handle)
+          assert plan["version"] == "v0.5.50"
+          assert plan["mode"] == "dry-run"
+          assert len(plan["sha256"]) == 64
+          PY
+
+  secure-installer-windows-dryrun:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Verify Windows installer dry-run
+        shell: pwsh
+        run: |
+          $out = & ".\agents\repo-skill-steward\installers\skills-registry-secure.ps1"
+          $plan = $out | ConvertFrom-Json
+          if ($plan.version -ne "v0.5.50") { throw "unexpected version" }
+          if ($plan.mode -ne "dry-run") { throw "installer did not default to dry-run" }
+          if ($plan.sha256.Length -ne 64) { throw "invalid SHA-256 length" }
