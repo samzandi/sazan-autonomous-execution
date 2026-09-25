@@ -6,7 +6,9 @@ on:
       - "agents/repo-skill-steward/**"
       - "tests/repo-skill-steward-scenarios.md"
       - "tests/test_repo_skill_steward.py"
+      - "tests/test_repo_skill_steward_report.py"
       - ".github/workflows/repo-skill-steward-ci.yml"
+      - ".github/workflows/repo-skill-steward-scheduled-audit.yml"
   workflow_dispatch:
 
 permissions:
@@ -23,14 +25,18 @@ jobs:
         run: |
           python3 -m py_compile agents/repo-skill-steward/scripts/inventory.py
           python3 -m py_compile agents/repo-skill-steward/scripts/classify.py
+          python3 -m py_compile agents/repo-skill-steward/scripts/report.py
 
       - name: Check CLI help
         run: |
           python3 agents/repo-skill-steward/scripts/inventory.py --help >/dev/null
           python3 agents/repo-skill-steward/scripts/classify.py --help >/dev/null
+          python3 agents/repo-skill-steward/scripts/report.py --help >/dev/null
 
       - name: Run steward unit tests
-        run: python3 -m unittest tests/test_repo_skill_steward.py
+        run: |
+          python3 -m unittest tests/test_repo_skill_steward.py
+          python3 -m unittest tests/test_repo_skill_steward_report.py
 
       - name: Verify missing-token safety
         shell: bash
@@ -49,6 +55,8 @@ jobs:
           grep -q "persist_private_repo_inventory: false" agents/repo-skill-steward/sources.yml
           grep -q "install_status: not-installed" agents/repo-skill-steward/candidate-lock.yml
           grep -q "auto_merge.*False" agents/repo-skill-steward/scripts/classify.py
+          grep -q "permissions:" .github/workflows/repo-skill-steward-scheduled-audit.yml
+          grep -q "contents: read" .github/workflows/repo-skill-steward-scheduled-audit.yml
 
   secure-installer-posix-dryrun:
     runs-on: ubuntu-latest
