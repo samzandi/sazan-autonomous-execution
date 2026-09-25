@@ -77,9 +77,35 @@ candidates:
     role: centralized-personal-skill-registry
     repository: nikships/skills-registry
     repository_commit: adbdaa490c81728d41c01257266c284722e82f62
+    release_tag: v0.5.50
+    release_commit: 5be55fe7859f19336a55a41339ea4711389ae67e
     license: Apache-2.0
-    status: evaluate-after-cli
+    status: digest-smoke-passed
     install_status: not-installed
+    security_observations:
+      npm_postinstall_downloads_binary: true
+      shell_installers_verify_digest: false
+      github_release_asset_digests_available: true
+      observed_latest_release: macapp-v0.1.18
+      latest_release_stream_mismatch_risk: true
+      required_install_mode: pinned-release-with-sha256-verification
+    pinned_digests:
+      linux_amd64: e863de8a1abfb50c260e2df1fb21c25aa33075a8555673dcd01a2f08d2bfb75c
+      linux_arm64: a590f46db89798c28cccb719c15887c18a9903f0913ade3a695eb1c93a0abf6a
+      darwin_amd64: 1d5f960b0dc332e9170f789eb80afe51a10144d2760aa69ea4cd9f8f0d57f5b9
+      darwin_arm64: fab6f309b1d4724e3eca95434567b2d720ee3f5b7d95bfe82ebec63ba366cb4f
+      windows_amd64: a7d9e6a77ab111632f455dcf07c881a790b04ca9ee7e1543f9d4dff51941b7b9
+      windows_arm64: e3acbaa527d607892f08d7bf7a4d5a91d295c2df23157862d71975a1d5380ad3
+    lab_evidence:
+      workflow: Repo Skill Steward Candidate Lab
+      run_id: 36116817811
+      checks:
+        - pinned-v0.5.50-release
+        - github-release-sha256-match
+        - verified-extraction
+        - version-smoke
+        - help-smoke
+      secrets_provided: false
 
 promotion_order:
   - skills-cli
@@ -93,4 +119,5 @@ notes:
   - every executable candidate remains lab-only until runtime behavior is verified
   - readonly-smoke-passed does not authorize installation or mutation of real skill directories
   - static-review-passed means no separate executable payload was present in the candidate skill directory
+  - skills-registry must not use its unverified latest installer path in steward-managed installations
   - no candidate is authorized to write to production repositories by discovery alone
