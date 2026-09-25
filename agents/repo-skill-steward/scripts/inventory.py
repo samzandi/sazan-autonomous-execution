@@ -2,8 +2,8 @@
 """Read-only GitHub repository inventory for Sazan Repo & Skill Steward.
 
 The script never writes to GitHub. It discovers accessible repositories,
-top-level capability markers, dependency manifests, and GitHub Actions
-workflows. Private repository names are not persisted by this script.
+update surfaces, and verification signals. Private repository details can be
+redacted with --public-safe.
 """
 
 from __future__ import annotations
@@ -40,10 +40,28 @@ DEPENDENCY_MARKERS = {
     "gradlew",
 }
 
+CONTAINER_MARKERS = {
+    "compose.yaml",
+    "compose.yml",
+    "docker-compose.yaml",
+    "docker-compose.yml",
+    "Dockerfile",
+}
+
 AGENT_MARKERS = {
     "AGENTS.md",
     "SKILL.md",
     "START_HERE.md",
+}
+
+SKILL_SURFACES = {
+    "skills",
+    ".agents",
+    ".claude-plugin",
+    ".codex-plugin",
+    ".cursor",
+    ".opencode",
+    ".qoder-plugin",
 }
 
 TEST_MARKERS = {
@@ -99,6 +117,12 @@ class GitHubClient:
             page += 1
         return repos
 
+    def get_repository(self, full_name: str) -> dict[str, Any]:
+        payload = self.get_json(f"/repos/{full_name}")
+        if not isinstance(payload, dict):
+            raise RuntimeError("Unexpected GitHub repository metadata response")
+        return payload
+
     def list_contents(self, full_name: str, path: str = "") -> list[dict[str, Any]]:
         encoded_path = urllib.parse.quote(path.strip("/"), safe="/")
         suffix = f"/{encoded_path}" if encoded_path else ""
@@ -126,26 +150,66 @@ def summarize_repository(client: GitHubClient, repo: dict[str, Any]) -> dict[str
         except RuntimeError:
             workflows = []
 
+    upstream = None
+    if bool(repo.get("fork", False)):
+        try:
+            detailed = client.get_repository(full_name)
+            upstream = (
+                detailed.get("parent", {}).get("full_name")
+                or detailed.get("source", {}).get("full_name")
+            )
+        except RuntimeError:
+            upstream = None
+
+    dependency_markers = sorted(root_names & DEPENDENCY_MARKERS)
+    container_markers = sorted(root_names & CONTAINER_MARKERS)
+    agent_markers = sorted(root_names & AGENT_MARKERS)
+    skill_surfaces = sorted(root_names & SKILL_SURFACES)
+
     return {
         "full_name": full_name,
         "visibility": repo.get("visibility", "private" if repo.get("private") else "public"),
         "archived": bool(repo.get("archived", False)),
         "fork": bool(repo.get("fork", False)),
+        "upstream": upstream,
         "default_branch": repo.get("default_branch"),
-        "dependency_markers": sorted(root_names & DEPENDENCY_MARKERS),
-        "agent_markers": sorted(root_names & AGENT_MARKERS),
+        "dependency_markers": dependency_markers,
+        "container_markers": container_markers,
+        "agent_markers": agent_markers,
+        "skill_surfaces": skill_surfaces,
         "has_tests": bool(root_names & TEST_MARKERS),
         "has_github_actions": bool(workflows),
         "workflows": workflows,
+        "root_entry_count": len(root_names),
     }
 
 
 def public_safe(record: dict[str, Any]) -> dict[str, Any]:
-    if record.get("visibility") == "private":
-        safe = dict(record)
-        safe["full_name"] = "<private-repository>"
-        return safe
-    return record
+    if record.get("visibility") != "private":
+        return record
+
+    if "error" in record:
+        return {
+            "full_name": "<private-repository>",
+            "visibility": "private",
+            "error": "repository-inspection-failed",
+        }
+
+    return {
+        "full_name": "<private-repository>",
+        "visibility": "private",
+        "archived": bool(record.get("archived", False)),
+        "fork": bool(record.get("fork", False)),
+        "has_dependencies": bool(record.get("dependency_markers")),
+        "dependency_marker_count": len(record.get("dependency_markers", [])),
+        "has_container_config": bool(record.get("container_markers")),
+        "has_agent_markers": bool(record.get("agent_markers")),
+        "has_skill_surface": bool(record.get("skill_surfaces")),
+        "has_tests": bool(record.get("has_tests", False)),
+        "has_github_actions": bool(record.get("has_github_actions", False)),
+        "workflow_count": len(record.get("workflows", [])),
+        "root_entry_count": int(record.get("root_entry_count", 0)),
+    }
 
 
 def parse_args() -> argparse.Namespace:
@@ -159,7 +223,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--public-safe",
         action="store_true",
-        help="Redact private repository names in stdout.",
+        help="Redact private repository identity and detailed metadata in stdout.",
     )
     parser.add_argument(
         "--api-base",
