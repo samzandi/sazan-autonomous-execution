@@ -26,17 +26,20 @@ jobs:
           python3 -m py_compile agents/repo-skill-steward/scripts/inventory.py
           python3 -m py_compile agents/repo-skill-steward/scripts/classify.py
           python3 -m py_compile agents/repo-skill-steward/scripts/report.py
+          python3 -m py_compile agents/repo-skill-steward/scripts/skill_drift.py
 
       - name: Check CLI help
         run: |
           python3 agents/repo-skill-steward/scripts/inventory.py --help >/dev/null
           python3 agents/repo-skill-steward/scripts/classify.py --help >/dev/null
           python3 agents/repo-skill-steward/scripts/report.py --help >/dev/null
+          python3 agents/repo-skill-steward/scripts/skill_drift.py --help >/dev/null
 
       - name: Run steward unit tests
         run: |
           python3 -m unittest tests/test_repo_skill_steward.py
           python3 -m unittest tests/test_repo_skill_steward_report.py
+          python3 -m unittest tests/test_repo_skill_steward_skill_drift.py
 
       - name: Verify missing-token safety
         shell: bash
