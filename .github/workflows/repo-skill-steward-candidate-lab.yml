@@ -1,0 +1,66 @@
+name: Repo Skill Steward Candidate Lab
+
+on:
+  pull_request:
+    paths:
+      - "agents/repo-skill-steward/candidate-lock.yml"
+      - ".github/workflows/repo-skill-steward-candidate-lab.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  skills-cli-readonly-smoke:
+    runs-on: ubuntu-latest
+    env:
+      DO_NOT_TRACK: "1"
+      DISABLE_TELEMETRY: "1"
+      npm_config_ignore_scripts: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.20.0"
+
+      - name: Create isolated lab home
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/steward-home" "$RUNNER_TEMP/skills-lab"
+          echo "HOME=$RUNNER_TEMP/steward-home" >> "$GITHUB_ENV"
+          echo "npm_config_cache=$RUNNER_TEMP/steward-npm-cache" >> "$GITHUB_ENV"
+
+      - name: Verify pinned CLI version
+        working-directory: ${{ runner.temp }}/skills-lab
+        run: |
+          version="$(npx --yes skills@1.7.0 --version)"
+          test "$version" = "1.7.0"
+
+      - name: Verify read-only help paths
+        working-directory: ${{ runner.temp }}/skills-lab
+        run: |
+          npx --yes skills@1.7.0 --help >/dev/null
+          npx --yes skills@1.7.0 update --help >/dev/null
+
+      - name: Verify empty isolated inventory
+        working-directory: ${{ runner.temp }}/skills-lab
+        run: |
+          npx --yes skills@1.7.0 list --json > "$RUNNER_TEMP/skills-list.json"
+          python3 - <<'PY'
+          import json, os
+          path = os.path.join(os.environ["RUNNER_TEMP"], "skills-list.json")
+          with open(path, encoding="utf-8") as handle:
+              json.load(handle)
+          PY
+
+      - name: Verify no project mutation
+        working-directory: ${{ runner.temp }}/skills-lab
+        shell: bash
+        run: |
+          test ! -e skills-lock.json
+          test ! -e .agents
+          test ! -e .claude
+          test ! -e .codex
