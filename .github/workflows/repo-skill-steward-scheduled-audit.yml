@@ -1,0 +1,65 @@
+name: Repo Skill Steward Scheduled Audit
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo-skill-steward-scheduled-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      STEWARD_GITHUB_TOKEN: ${{ secrets.STEWARD_GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Credential status
+        shell: bash
+        run: |
+          if [ -z "$STEWARD_GITHUB_TOKEN" ]; then
+            {
+              echo "# Sazan Repo & Skill Steward — scheduled audit"
+              echo
+              echo "Cross-repository audit is not active because STEWARD_GITHUB_TOKEN is not configured."
+              echo
+              echo "No repository mutation was attempted."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Run public-safe account inventory
+        if: env.STEWARD_GITHUB_TOKEN != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.STEWARD_GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 agents/repo-skill-steward/scripts/inventory.py             --owner "${{ github.repository_owner }}"             --public-safe             > "$RUNNER_TEMP/steward-inventory.json"
+
+      - name: Classify update strategies
+        if: env.STEWARD_GITHUB_TOKEN != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 agents/repo-skill-steward/scripts/classify.py             "$RUNNER_TEMP/steward-inventory.json"             > "$RUNNER_TEMP/steward-classification.json"
+
+      - name: Render public-safe summary
+        if: env.STEWARD_GITHUB_TOKEN != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 agents/repo-skill-steward/scripts/report.py             --inventory "$RUNNER_TEMP/steward-inventory.json"             --classification "$RUNNER_TEMP/steward-classification.json"             --output "$RUNNER_TEMP/steward-report.md"
+          cat "$RUNNER_TEMP/steward-report.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Confirm read-only policy
+        shell: bash
+        run: |
+          grep -q "direct_main_updates: false" agents/repo-skill-steward/sources.yml
+          grep -q "auto_merge: false" agents/repo-skill-steward/personal-stack.yml
