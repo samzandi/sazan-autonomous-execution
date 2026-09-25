@@ -1,0 +1,63 @@
+version: 1
+verified_at: 2026-09-25
+
+candidates:
+  - name: agent-skill-stack
+    role: skill-discovery-and-stack-selection
+    repository: github/awesome-copilot
+    path: skills/agent-skill-stack/SKILL.md
+    repository_commit: 6c4d33b9cfca967a28bb2962ef4d55e4a384c88c
+    blob_sha: e89c861c51f249247ec923e0e8fa69251d3c169e
+    license: MIT
+    status: approved-for-lab
+    install_status: not-installed
+
+  - name: agent-supply-chain
+    role: skill-agent-integrity-and-provenance
+    repository: github/awesome-copilot
+    path: skills/agent-supply-chain/SKILL.md
+    repository_commit: 6c4d33b9cfca967a28bb2962ef4d55e4a384c88c
+    blob_sha: 995c87835577fc396d31ff4447cea9d91ca61484
+    license: MIT
+    status: approved-for-lab
+    install_status: not-installed
+
+  - name: repo-maintainer
+    role: repository-health-and-maintenance
+    repository: Wolfe-Jam/faf-skills
+    path: skills/repo-maintainer/SKILL.md
+    repository_commit: 018d06287dcc4a46ad2d3e28b641305d7ce64f7c
+    blob_sha: 33360f7eb633155a8286b61d732501e2752d3ce8
+    license: MIT
+    status: approved-for-lab
+    install_status: not-installed
+
+  - name: skills-cli
+    role: installed-skill-discovery-check-and-update
+    repository: vercel-labs/skills
+    package: skills
+    package_version_observed: 1.7.0
+    repository_commit: 7407f3893ad4dceab546ac002c3ef806e4000c73
+    license: MIT
+    status: approved-for-lab
+    install_status: not-installed
+
+  - name: skills-registry
+    role: centralized-personal-skill-registry
+    repository: nikships/skills-registry
+    repository_commit: adbdaa490c81728d41c01257266c284722e82f62
+    license: Apache-2.0
+    status: evaluate-after-cli
+    install_status: not-installed
+
+promotion_order:
+  - skills-cli
+  - agent-skill-stack
+  - agent-supply-chain
+  - repo-maintainer
+  - skills-registry
+
+notes:
+  - canonical sources are preferred over mirrors or aggregators
+  - every candidate remains lab-only until runtime behavior is verified
+  - no candidate is authorized to write to production repositories by discovery alone
