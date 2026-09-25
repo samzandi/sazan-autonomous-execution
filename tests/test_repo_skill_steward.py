@@ -19,6 +19,31 @@ inventory = load_module("steward_inventory", INVENTORY_PATH)
 classify = load_module("steward_classify", CLASSIFY_PATH)
 
 
+class EmptyRepositoryTests(unittest.TestCase):
+    def test_empty_repository_root_is_not_an_inspection_error(self):
+        client = inventory.GitHubClient("dummy")
+
+        def fake_get_json(path):
+            raise RuntimeError(
+                'GitHub API error 404: {"message":"This repository is empty."}'
+            )
+
+        client.get_json = fake_get_json
+        self.assertEqual(client.list_contents("owner/empty"), [])
+
+    def test_missing_subpath_still_fails_closed(self):
+        client = inventory.GitHubClient("dummy")
+
+        def fake_get_json(path):
+            raise RuntimeError(
+                'GitHub API error 404: {"message":"This repository is empty."}'
+            )
+
+        client.get_json = fake_get_json
+        with self.assertRaises(RuntimeError):
+            client.list_contents("owner/empty", ".github")
+
+
 class PrivacyTests(unittest.TestCase):
     def test_private_record_redacts_identity_and_workflow_names(self):
         record = {
