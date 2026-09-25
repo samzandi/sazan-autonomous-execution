@@ -67,7 +67,14 @@ else
   exit 1
 fi
 
-actual="$(sha256sum "$archive" | awk '{print $1}')"
+if command -v sha256sum >/dev/null 2>&1; then
+  actual="$(sha256sum "$archive" | awk '{print $1}')"
+elif command -v shasum >/dev/null 2>&1; then
+  actual="$(shasum -a 256 "$archive" | awk '{print $1}')"
+else
+  printf 'sha256sum or shasum is required for integrity verification\n' >&2
+  exit 1
+fi
 if [ "$actual" != "$expected" ]; then
   printf 'SHA-256 mismatch: expected %s got %s\n' "$expected" "$actual" >&2
   exit 1
