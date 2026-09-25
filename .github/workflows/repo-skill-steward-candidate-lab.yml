@@ -1,0 +1,182 @@
+name: Repo Skill Steward Candidate Lab
+
+on:
+  pull_request:
+    paths:
+      - "agents/repo-skill-steward/candidate-lock.yml"
+      - ".github/workflows/repo-skill-steward-candidate-lab.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  skills-cli-readonly-smoke:
+    runs-on: ubuntu-latest
+    env:
+      DO_NOT_TRACK: "1"
+      DISABLE_TELEMETRY: "1"
+      npm_config_ignore_scripts: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.20.0"
+
+      - name: Create isolated lab home
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/steward-home" "$RUNNER_TEMP/skills-lab"
+          echo "HOME=$RUNNER_TEMP/steward-home" >> "$GITHUB_ENV"
+          echo "npm_config_cache=$RUNNER_TEMP/steward-npm-cache" >> "$GITHUB_ENV"
+
+      - name: Verify pinned CLI version
+        working-directory: ${{ runner.temp }}/skills-lab
+        run: |
+          version="$(npx --yes skills@1.7.0 --version)"
+          test "$version" = "1.7.0"
+
+      - name: Verify read-only help paths
+        working-directory: ${{ runner.temp }}/skills-lab
+        run: |
+          npx --yes skills@1.7.0 --help >/dev/null
+          npx --yes skills@1.7.0 update --help >/dev/null
+
+      - name: Verify empty isolated inventory
+        working-directory: ${{ runner.temp }}/skills-lab
+        run: |
+          npx --yes skills@1.7.0 list --json > "$RUNNER_TEMP/skills-list.json"
+          python3 - <<'PY'
+          import json, os
+          path = os.path.join(os.environ["RUNNER_TEMP"], "skills-list.json")
+          with open(path, encoding="utf-8") as handle:
+              json.load(handle)
+          PY
+
+      - name: Verify no project mutation
+        working-directory: ${{ runner.temp }}/skills-lab
+        shell: bash
+        run: |
+          test ! -e skills-lock.json
+          test ! -e .agents
+          test ! -e .claude
+          test ! -e .codex
+
+  agent-skill-stack-readonly-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout steward
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Fetch pinned candidate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/awesome-copilot"
+          git init "$target"
+          git -C "$target" remote add origin https://github.com/github/awesome-copilot.git
+          git -C "$target" fetch --depth=1 origin 6c4d33b9cfca967a28bb2962ef4d55e4a384c88c
+          git -C "$target" checkout --detach FETCH_HEAD
+          test "$(git -C "$target" rev-parse HEAD)" = "6c4d33b9cfca967a28bb2962ef4d55e4a384c88c"
+
+      - name: Create benign skill fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/stack-fixture"
+          mkdir -p "$root/skills/demo" "$root/project"
+          cat > "$root/skills/demo/SKILL.md" <<'EOF'
+          ---
+          name: demo
+          description: A benign fixture skill for isolated steward validation
+          ---
+
+          # Demo
+
+          Read local fixture data only.
+          EOF
+
+      - name: Run local inventory and index
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts="$RUNNER_TEMP/awesome-copilot/skills/agent-skill-stack/scripts"
+          root="$RUNNER_TEMP/stack-fixture"
+          python3 "$scripts/inventory_skills.py" --root "$root/skills" --summary-only > "$RUNNER_TEMP/stack-inventory.json"
+          python3 "$scripts/skill_index.py" build --root "$root/skills" --output "$RUNNER_TEMP/skill-index.json" --project-root "$root" > "$RUNNER_TEMP/index-build.json"
+          python3 "$scripts/skill_index.py" search --index "$RUNNER_TEMP/skill-index.json" --query demo > "$RUNNER_TEMP/index-search.json"
+
+      - name: Verify profile preview has no write
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts="$RUNNER_TEMP/awesome-copilot/skills/agent-skill-stack/scripts"
+          root="$RUNNER_TEMP/stack-fixture"
+          python3 "$scripts/project_profile.py" --project "$root/project" --name lab-stack --skill demo > "$RUNNER_TEMP/profile-preview.json"
+          test ! -e "$root/project/.codex/skill-stack.json"
+
+      - name: Verify staged install dry-run has no install
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts="$RUNNER_TEMP/awesome-copilot/skills/agent-skill-stack/scripts"
+          root="$RUNNER_TEMP/stack-fixture"
+          python3 "$scripts/stage_install.py" --source "$root/skills/demo" --dest "$root/dest" --manifest "$RUNNER_TEMP/stage-manifest.json" > "$RUNNER_TEMP/stage-preview.json"
+          test ! -e "$root/dest/demo"
+
+      - name: Validate lab JSON outputs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          base = os.environ["RUNNER_TEMP"]
+          for name in [
+              "stack-inventory.json",
+              "index-build.json",
+              "index-search.json",
+              "profile-preview.json",
+              "stage-preview.json",
+              "stage-manifest.json",
+          ]:
+              with open(os.path.join(base, name), encoding="utf-8") as handle:
+                  json.load(handle)
+          PY
+
+
+  skills-registry-digest-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download pinned release asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/skills-registry-lab"
+          cd "$RUNNER_TEMP/skills-registry-lab"
+          curl -fsSL --retry 3 -o skills-registry.tar.gz             https://github.com/nikships/skills-registry/releases/download/v0.5.50/skills-registry_linux_amd64.tar.gz
+
+      - name: Verify GitHub release digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/skills-registry-lab"
+          echo "e863de8a1abfb50c260e2df1fb21c25aa33075a8555673dcd01a2f08d2bfb75c  skills-registry.tar.gz" | sha256sum -c -
+
+      - name: Extract verified binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/skills-registry-lab"
+          tar -xzf skills-registry.tar.gz skills-registry
+          test -f skills-registry
+          chmod +x skills-registry
+
+      - name: Run read-only binary smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/skills-registry-lab"
+          ./skills-registry --version
+          ./skills-registry --help >/dev/null

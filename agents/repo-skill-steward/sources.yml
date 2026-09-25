@@ -1,0 +1,41 @@
+version: 1
+
+skill_sources:
+  - name: github-awesome-copilot
+    repository: github/awesome-copilot
+    purpose: curated agent and skill patterns
+    trust: high
+    action: review-before-use
+
+  - name: skills-registry
+    repository: nikships/skills-registry
+    purpose: skill discovery and registry patterns
+    trust: review
+    action: sandbox-first
+
+  - name: skills-cli
+    repository: vercel-labs/skills
+    purpose: skill CLI, discovery, update checks, and lifecycle management
+    trust: high
+    action: sandbox-first
+
+  - name: repo-maintainer
+    repository: Wolfe-Jam/faf-skills
+    purpose: repository health, dependency, CI, documentation, and hygiene audit
+    trust: review
+    action: sandbox-first
+
+update_sources:
+  - name: renovate
+    repository: renovatebot/renovate
+    purpose: dependency update automation
+    trust: high
+    action: configure-per-repository
+
+rules:
+  require_provenance: true
+  require_license_check: true
+  require_security_review: true
+  require_lab_test: true
+  direct_main_updates: false
+  persist_private_repo_inventory: false

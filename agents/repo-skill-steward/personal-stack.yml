@@ -1,0 +1,68 @@
+version: 1
+name: sazan-personal-repo-skill-stack
+verified_at: 2026-09-25
+
+global_skills:
+  - name: agent-skill-stack
+    source: github/awesome-copilot
+    path: skills/agent-skill-stack
+    status: readonly-smoke-passed
+    purpose: discover, compare, deduplicate, and route useful skills and agents
+
+  - name: agent-supply-chain
+    source: github/awesome-copilot
+    path: skills/agent-supply-chain
+    status: static-review-passed
+    purpose: integrity, provenance, and dependency pinning checks
+
+  - name: repo-maintainer
+    source: Wolfe-Jam/faf-skills
+    path: skills/repo-maintainer
+    status: static-review-passed
+    purpose: repository health, dependency, CI, documentation, and hygiene audits
+
+cli_tools:
+  - name: skills
+    source: vercel-labs/skills
+    version: 1.7.0
+    invocation: npx --yes skills@1.7.0
+    environment:
+      DO_NOT_TRACK: "1"
+      DISABLE_TELEMETRY: "1"
+      npm_config_ignore_scripts: "true"
+    status: readonly-smoke-passed
+    purpose: list, find, check, and update installed skills
+
+optional_cli_tools:
+  - name: skills-registry
+    source: nikships/skills-registry
+    version: 0.5.50
+    status: digest-smoke-passed
+    install_policy: pinned-release-with-sha256-verification-only
+    purpose: centralized personal registry shared across multiple agent clients
+
+repository_policy:
+  auto_discover: true
+  auto_propose_updates: true
+  auto_merge: false
+  direct_main_updates: false
+  require_tests_or_manual_gate: true
+  require_rollback: true
+  persist_private_inventory_in_public_repo: false
+
+discovery_policy:
+  local_first: true
+  deduplicate_before_install: true
+  canonical_source_required: true
+  license_check_required: true
+  security_review_required: true
+  lab_test_required_for_executables: true
+
+promotion_policy:
+  - discover
+  - verify-source
+  - security-review
+  - lab
+  - test
+  - pull-request
+  - human-merge
