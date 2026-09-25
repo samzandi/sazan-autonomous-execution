@@ -162,7 +162,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/skills-registry-lab"
-          echo "e863de8a1abfb50c260e2df1fb21c25aa33075a8555673dcd01a2f08d2bfb75c9  skills-registry.tar.gz" | sha256sum -c -
+          echo "e863de8a1abfb50c260e2df1fb21c25aa33075a8555673dcd01a2f08d2bfb75c  skills-registry.tar.gz" | sha256sum -c -
 
       - name: Extract verified binary
         shell: bash
