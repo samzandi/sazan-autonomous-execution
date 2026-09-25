@@ -64,3 +64,83 @@ jobs:
           test ! -e .agents
           test ! -e .claude
           test ! -e .codex
+
+  agent-skill-stack-readonly-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout steward
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Fetch pinned candidate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/awesome-copilot"
+          git init "$target"
+          git -C "$target" remote add origin https://github.com/github/awesome-copilot.git
+          git -C "$target" fetch --depth=1 origin 6c4d33b9cfca967a28bb2962ef4d55e4a384c88c
+          git -C "$target" checkout --detach FETCH_HEAD
+          test "$(git -C "$target" rev-parse HEAD)" = "6c4d33b9cfca967a28bb2962ef4d55e4a384c88c"
+
+      - name: Create benign skill fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/stack-fixture"
+          mkdir -p "$root/skills/demo" "$root/project"
+          cat > "$root/skills/demo/SKILL.md" <<'EOF'
+          ---
+          name: demo
+          description: A benign fixture skill for isolated steward validation
+          ---
+
+          # Demo
+
+          Read local fixture data only.
+          EOF
+
+      - name: Run local inventory and index
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts="$RUNNER_TEMP/awesome-copilot/skills/agent-skill-stack/scripts"
+          root="$RUNNER_TEMP/stack-fixture"
+          python3 "$scripts/inventory_skills.py" --root "$root/skills" --summary-only > "$RUNNER_TEMP/stack-inventory.json"
+          python3 "$scripts/skill_index.py" build --root "$root/skills" --output "$RUNNER_TEMP/skill-index.json" --project-root "$root" > "$RUNNER_TEMP/index-build.json"
+          python3 "$scripts/skill_index.py" search --index "$RUNNER_TEMP/skill-index.json" --query demo > "$RUNNER_TEMP/index-search.json"
+
+      - name: Verify profile preview has no write
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts="$RUNNER_TEMP/awesome-copilot/skills/agent-skill-stack/scripts"
+          root="$RUNNER_TEMP/stack-fixture"
+          python3 "$scripts/project_profile.py" --project "$root/project" --name lab-stack --skill demo > "$RUNNER_TEMP/profile-preview.json"
+          test ! -e "$root/project/.codex/skill-stack.json"
+
+      - name: Verify staged install dry-run has no install
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts="$RUNNER_TEMP/awesome-copilot/skills/agent-skill-stack/scripts"
+          root="$RUNNER_TEMP/stack-fixture"
+          python3 "$scripts/stage_install.py" --source "$root/skills/demo" --dest "$root/dest" --manifest "$RUNNER_TEMP/stage-manifest.json" > "$RUNNER_TEMP/stage-preview.json"
+          test ! -e "$root/dest/demo"
+
+      - name: Validate lab JSON outputs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          base = os.environ["RUNNER_TEMP"]
+          for name in [
+              "stack-inventory.json",
+              "index-build.json",
+              "index-search.json",
+              "profile-preview.json",
+              "stage-preview.json",
+              "stage-manifest.json",
+          ]:
+              with open(os.path.join(base, name), encoding="utf-8") as handle:
+                  json.load(handle)
+          PY
