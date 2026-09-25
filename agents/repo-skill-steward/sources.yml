@@ -14,8 +14,14 @@ skill_sources:
     action: sandbox-first
 
   - name: skills-cli
-    repository: antfu/skills-cli
-    purpose: skill CLI and lifecycle patterns
+    repository: vercel-labs/skills
+    purpose: skill CLI, discovery, update checks, and lifecycle management
+    trust: high
+    action: sandbox-first
+
+  - name: repo-maintainer
+    repository: Wolfe-Jam/faf-skills
+    purpose: repository health, dependency, CI, documentation, and hygiene audit
     trust: review
     action: sandbox-first
 
