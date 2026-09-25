@@ -39,8 +39,20 @@ candidates:
     package_version_observed: 1.7.0
     repository_commit: 7407f3893ad4dceab546ac002c3ef806e4000c73
     license: MIT
-    status: approved-for-lab
+    status: readonly-smoke-passed
     install_status: not-installed
+    lab_evidence:
+      workflow: Repo Skill Steward Candidate Lab
+      run_id: 36116422031
+      checks:
+        - pinned-version
+        - global-help
+        - update-help-no-side-effect
+        - isolated-list-json
+        - no-project-mutation
+      telemetry_disabled: true
+      secrets_provided: false
+      npm_lifecycle_scripts_disabled: true
 
   - name: skills-registry
     role: centralized-personal-skill-registry
@@ -60,4 +72,5 @@ promotion_order:
 notes:
   - canonical sources are preferred over mirrors or aggregators
   - every candidate remains lab-only until runtime behavior is verified
+  - readonly-smoke-passed does not authorize installation or mutation of real skill directories
   - no candidate is authorized to write to production repositories by discovery alone
