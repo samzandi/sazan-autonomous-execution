@@ -1,0 +1,268 @@
+name: Repository Intelligence C002 Diff Impact Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-c002-diff-impact-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+      - "tests/test_repository_intelligence_diff_impact.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diff-impact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CODEGRAPH_TELEMETRY: "off"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Compile and test normalizer
+        run: |
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py
+          python3 -m unittest tests/test_repository_intelligence_diff_impact.py
+
+      - name: Create API semantic-impact fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/api-impact-fixture"
+          mkdir -p "$fixture/api" "$fixture/tests"
+          touch "$fixture/api/__init__.py"
+
+          cat > "$fixture/api/service.py" <<'PY'
+          def publish_order_created(order):
+              return {"event": "order.created", "order": order}
+
+          def handle_checkout(order):
+              return publish_order_created(order)
+          PY
+
+          cat > "$fixture/tests/test_service.py" <<'PY'
+          from api.service import handle_checkout
+
+          def test_checkout_publishes():
+              assert handle_checkout({"id": 1})["event"] == "order.created"
+          PY
+
+          git init -q "$fixture"
+          git -C "$fixture" config user.email "ci@example.invalid"
+          git -C "$fixture" config user.name "Sazan CI"
+          git -C "$fixture" add .
+          git -C "$fixture" commit -qm "fixture"
+          echo "API_FIXTURE=$fixture" >> "$GITHUB_ENV"
+
+      - name: Download and verify CodeGraph 0.20.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/codegraph-server"
+          curl -fsSL --retry 3 -o "$bin"             https://github.com/codegraph-ai/CodeGraph/releases/download/v0.20.1/codegraph-server-linux-x64
+          echo "32b26422fa5ffe0a130955b7f7df771f722b2d427d67f53f104d9907bdfb24a6  $bin" | sha256sum -c -
+          chmod +x "$bin"
+          echo "CODEGRAPH_BIN=$bin" >> "$GITHUB_ENV"
+
+      - name: Collect real local semantic impact
+        shell: bash
+        run: |
+          set -euo pipefail
+          uri="$(python3 -c 'from pathlib import Path; import os; print(Path(os.environ["API_FIXTURE"] + "/api/service.py").resolve().as_uri())')"
+          cd "$API_FIXTURE"
+          "$CODEGRAPH_BIN" --graph-only             --run-tool codegraph_analyze_impact             --tool-args "$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"line":1,"changeType":"modify"}))' "$uri")"             > "$RUNNER_TEMP/codegraph-impact.txt"
+
+          test -s "$RUNNER_TEMP/codegraph-impact.txt"
+          grep -q "publish_order_created" "$RUNNER_TEMP/codegraph-impact.txt"
+          grep -Eq "handle_checkout|service.py" "$RUNNER_TEMP/codegraph-impact.txt"
+
+      - name: Build workspace contracts and process flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/workspace.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "workspace_id": "c002-impact-fixture",
+            "repositories": [
+              {
+                "repository_id": "web",
+                "visibility": "local-fixture",
+                "source": "fixture/web",
+                "revision": "web-001",
+                "requires": [{
+                  "key": "http.checkout.v1",
+                  "kind": "http-api",
+                  "version": "1.0.0",
+                  "provider_hint": "api",
+                  "state": "observed",
+                  "evidence": ["web:http-client"]
+                }]
+              },
+              {
+                "repository_id": "api",
+                "visibility": "local-fixture",
+                "source": "fixture/api",
+                "revision": "api-001",
+                "provides": [
+                  {
+                    "key": "http.checkout.v1",
+                    "kind": "http-api",
+                    "version": "1.0.0",
+                    "state": "observed",
+                    "evidence": ["api:http-route"]
+                  },
+                  {
+                    "key": "event.order.created",
+                    "kind": "event",
+                    "version": "1.0.0",
+                    "state": "observed",
+                    "evidence": ["api:event-publisher"]
+                  }
+                ]
+              },
+              {
+                "repository_id": "repo_worker_01",
+                "visibility": "private",
+                "source": "secret-owner/private-worker",
+                "revision": "worker-001",
+                "requires": [{
+                  "key": "event.order.created",
+                  "kind": "event",
+                  "version": "1.0.0",
+                  "provider_hint": "api",
+                  "state": "observed",
+                  "evidence": ["worker:event-consumer"]
+                }]
+              }
+            ]
+          }
+          JSON
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/multi_repo_registry.py             "$RUNNER_TEMP/workspace.json"             --registry "$RUNNER_TEMP/registry.json"             --contracts "$RUNNER_TEMP/contracts.json"             --require-no-blockers
+
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          tmp = Path(os.environ["RUNNER_TEMP"])
+          contracts = json.loads((tmp / "contracts.json").read_text())
+          http_id = next(c["contract_id"] for c in contracts["contracts"] if c["kind"] == "http-api")
+          event_id = next(c["contract_id"] for c in contracts["contracts"] if c["kind"] == "event")
+          obs = {
+            "schema_version":1,
+            "workspace_id":"c002-impact-fixture",
+            "steps":[
+              {"step_id":"web.submit","repository_id":"web","label":"Submit","symbol":"submitCheckout","kind":"entry","entry":True,"state":"observed","evidence":["web:submit"]},
+              {"step_id":"web.http","repository_id":"web","label":"HTTP","symbol":"postCheckout","kind":"http-client","state":"observed","evidence":["web:http"]},
+              {"step_id":"api.handle","repository_id":"api","label":"Handle checkout","symbol":"handle_checkout","kind":"handler","state":"observed","evidence":["api:handler"]},
+              {"step_id":"api.publish","repository_id":"api","label":"Publish order.created","symbol":"publish_order_created","kind":"publisher","state":"observed","evidence":["api:publisher"]},
+              {"step_id":"worker.consume","repository_id":"repo_worker_01","label":"Consume event","symbol":"consume_order_created","kind":"consumer","state":"observed","evidence":["worker:consumer"]},
+              {"step_id":"worker.persist","repository_id":"repo_worker_01","label":"Persist","symbol":"persist_order","kind":"storage","terminal":True,"state":"observed","evidence":["worker:persist"]}
+            ],
+            "edges":[
+              {"from":"web.submit","to":"web.http","relation":"calls","state":"observed","evidence":["web:call"]},
+              {"from":"api.handle","to":"api.publish","relation":"calls","state":"observed","evidence":["api:call"]},
+              {"from":"worker.consume","to":"worker.persist","relation":"calls","state":"observed","evidence":["worker:call"]}
+            ],
+            "bindings":[
+              {"contract_id":http_id,"provider_step":"api.handle","consumer_step":"web.http","flow_direction":"consumer-to-provider","state":"observed","evidence":["binding:http"]},
+              {"contract_id":event_id,"provider_step":"api.publish","consumer_step":"worker.consume","flow_direction":"provider-to-consumer","state":"observed","evidence":["binding:event"]}
+            ]
+          }
+          (tmp / "flow-observations.json").write_text(json.dumps(obs))
+          (tmp / "event-contract-id.txt").write_text(event_id)
+          PY
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/process_flow_synthesis.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/flow-observations.json"             --json "$RUNNER_TEMP/flows.json"             --markdown "$RUNNER_TEMP/FLOWS.md"             --require-flow
+
+      - name: Normalize cross-repository blast radius
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          tmp = Path(os.environ["RUNNER_TEMP"])
+          event_id = (tmp / "event-contract-id.txt").read_text().strip()
+          changes = {
+            "schema_version":1,
+            "workspace_id":"c002-impact-fixture",
+            "changes":[{
+              "change_id":"change-api-event-publisher",
+              "repository_id":"api",
+              "change_type":"modify",
+              "surface_kind":"symbol",
+              "identifier":"publish_order_created",
+              "contract_ids":[event_id],
+              "state":"observed",
+              "evidence":["git:diff-publish-order-created"],
+              "local_impact":{
+                "provider":"codegraph-0.20.1",
+                "symbols":["publish_order_created"],
+                "tests":["test_checkout_publishes"],
+                "evidence":["codegraph:real-impact-run"],
+                "summary":{"filesAffected":2,"breakingChanges":0,"warnings":1}
+              }
+            }]
+          }
+          (tmp / "changes.json").write_text(json.dumps(changes))
+          PY
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/flows.json"             "$RUNNER_TEMP/changes.json"             --json "$RUNNER_TEMP/impact.json"             --markdown "$RUNNER_TEMP/IMPACT.md"             --require-complete
+
+          grep -q '"impact_level": "high"' "$RUNNER_TEMP/impact.json"
+          grep -q '"repo_worker_01"' "$RUNNER_TEMP/impact.json"
+          grep -q '"flow_001"' "$RUNNER_TEMP/impact.json"
+          grep -q 'test_checkout_publishes' "$RUNNER_TEMP/impact.json"
+          ! grep -q "secret-owner" "$RUNNER_TEMP/impact.json"
+          ! grep -q "secret-owner" "$RUNNER_TEMP/IMPACT.md"
+
+      - name: Verify contract version mismatch becomes critical
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          tmp = Path(os.environ["RUNNER_TEMP"])
+          event_id = (tmp / "event-contract-id.txt").read_text().strip()
+          changes = {
+            "schema_version":1,
+            "workspace_id":"c002-impact-fixture",
+            "changes":[{
+              "change_id":"change-event-v2",
+              "repository_id":"api",
+              "change_type":"version-change",
+              "surface_kind":"event",
+              "identifier":"event.order.created",
+              "contract_id":event_id,
+              "new_version":"2.0.0",
+              "state":"observed",
+              "evidence":["schema:diff"],
+              "local_impact":{"evidence":["schema:validation"]}
+            }]
+          }
+          (tmp / "changes-v2.json").write_text(json.dumps(changes))
+          PY
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/flows.json"             "$RUNNER_TEMP/changes-v2.json"             --json "$RUNNER_TEMP/impact-v2.json"             --markdown "$RUNNER_TEMP/IMPACT_V2.md"             --require-complete
+
+          grep -q '"impact_level": "critical"' "$RUNNER_TEMP/impact-v2.json"
+          grep -q '"version_mismatches": 1' "$RUNNER_TEMP/impact-v2.json"
+
+      - name: Publish diff impact evidence
+        shell: bash
+        run: |
+          {
+            echo "## C002 Diff → Impact Lab"
+            echo
+            echo "- Real CodeGraph semantic impact was collected for the changed API symbol."
+            echo "- Local impact was normalized into cross-repository blast radius."
+            echo "- The downstream private worker and end-to-end flow were selected for review."
+            echo "- Local affected test scope was retained."
+            echo "- A deliberate event version mismatch became a critical compatibility finding."
+            echo "- Private repository source identity did not appear in persisted output."
+          } >> "$GITHUB_STEP_SUMMARY"
