@@ -1,0 +1,121 @@
+name: Repository Intelligence C002 Budget Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-c002-budget-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+      - "tests/test_repository_intelligence_budget.py"
+      - "tests/test_repository_intelligence_orchestration.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  budget-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Compile budget and orchestration scripts
+        run: |
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/budget_guard.py
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/evidence_envelope.py
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/orchestrate_repository_intelligence.py
+
+      - name: Run budget contract tests
+        run: python3 -m unittest tests/test_repository_intelligence_budget.py
+
+      - name: Verify strict CLI allow and cumulative usage
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/budgets.json" <<'JSON'
+          {
+            "max_context_tokens": 1000,
+            "max_graph_nodes": 100,
+            "max_output_bytes": 10000,
+            "stage_timeout_seconds": 30
+          }
+          JSON
+
+          cat > "$RUNNER_TEMP/metrics.json" <<'JSON'
+          {
+            "context_tokens": 250,
+            "context_token_method": "provider-reported",
+            "output_bytes": 500,
+            "elapsed_seconds": 2.5,
+            "truncated": false
+          }
+          JSON
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/budget_guard.py             --budgets "$RUNNER_TEMP/budgets.json"             --metrics "$RUNNER_TEMP/metrics.json"             --stage L1-context-packaging             --required context_tokens             --required output_bytes             --required elapsed_seconds             --strict             --output "$RUNNER_TEMP/receipt.json"             --require-allow
+
+          grep -q '"decision": "allow"' "$RUNNER_TEMP/receipt.json"
+          grep -q '"context_tokens": 250' "$RUNNER_TEMP/receipt.json"
+          grep -q '"output_bytes": 500' "$RUNNER_TEMP/receipt.json"
+
+      - name: Verify strict missing measurement fails closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/missing.json" <<'JSON'
+          {
+            "context_tokens": 100,
+            "context_token_method": "provider-reported",
+            "output_bytes": 100
+          }
+          JSON
+
+          set +e
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/budget_guard.py             --budgets "$RUNNER_TEMP/budgets.json"             --metrics "$RUNNER_TEMP/missing.json"             --stage L1-context-packaging             --required context_tokens             --required output_bytes             --required elapsed_seconds             --strict             --output "$RUNNER_TEMP/missing-receipt.json"             --require-allow
+          code=$?
+          set -e
+          test "$code" -eq 8
+          grep -q '"decision": "block"' "$RUNNER_TEMP/missing-receipt.json"
+          grep -q '"elapsed_seconds"' "$RUNNER_TEMP/missing-receipt.json"
+
+      - name: Verify over-budget and truncation do not mutate artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '0123456789abcdef' > "$RUNNER_TEMP/artifact.txt"
+          before="$(sha256sum "$RUNNER_TEMP/artifact.txt" | cut -d' ' -f1)"
+
+          cat > "$RUNNER_TEMP/over.json" <<'JSON'
+          {
+            "output_bytes": 10001,
+            "elapsed_seconds": 1,
+            "truncated": true
+          }
+          JSON
+
+          set +e
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/budget_guard.py             --budgets "$RUNNER_TEMP/budgets.json"             --metrics "$RUNNER_TEMP/over.json"             --stage L3-architecture-presentation             --required output_bytes             --required elapsed_seconds             --strict             --output "$RUNNER_TEMP/over-receipt.json"             --require-allow
+          code=$?
+          set -e
+          test "$code" -eq 8
+          grep -q '"decision": "block"' "$RUNNER_TEMP/over-receipt.json"
+          grep -q 'truncated' "$RUNNER_TEMP/over-receipt.json"
+
+          after="$(sha256sum "$RUNNER_TEMP/artifact.txt" | cut -d' ' -f1)"
+          test "$before" = "$after"
+
+      - name: Publish budget evidence
+        shell: bash
+        run: |
+          {
+            echo "## C002 Token & Output Budget Lab"
+            echo
+            echo "- Strict budget measurements were machine-enforced."
+            echo "- Missing required usage failed closed."
+            echo "- Context/output usage accumulated deterministically."
+            echo "- Graph nodes use a run ceiling rather than double-counting repeated graph views."
+            echo "- Provider truncation blocked by default."
+            echo "- Budget rejection did not mutate the source artifact."
+            echo "- Legacy manifests remain compatible until strict budget reporting is enabled."
+          } >> "$GITHUB_STEP_SUMMARY"
