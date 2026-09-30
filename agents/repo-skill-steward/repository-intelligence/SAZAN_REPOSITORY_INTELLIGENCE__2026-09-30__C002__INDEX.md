@@ -16,7 +16,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - multi-repository registry — VERIFIED / PROMOTED;
 - cross-repository contracts — VERIFIED / PROMOTED;
 - process-flow synthesis — VERIFIED / PROMOTED;
-- diff-impact normalization;
+- diff-impact normalization — VERIFIED / PROMOTED;
 - token and output budgets;
 - provider fallback/health controls;
 - incremental state/cache strategy;
@@ -88,3 +88,24 @@ Model:
 - max-hops and max-paths prevent runaway traversal.
 
 Status: VERIFIED — process-flow lab run 36753107333; 11 contract tests plus end-to-end multi-repository flow validation passed.
+
+
+## Milestone 4 — Diff → Impact normalization
+
+Implementation:
+- `scripts/diff_impact_normalize.py`;
+- `C002_DIFF_IMPACT_CONTRACT.md`;
+- diff-impact unit tests;
+- CodeGraph-backed cross-repository integration lab.
+
+Model:
+- local semantic impact is collected from CodeGraph or another normalized provider;
+- local file/symbol/test impact is preserved;
+- explicit changed contract IDs propagate review to provider/consumer repositories;
+- changed process steps and contract edges propagate into downstream end-to-end flows;
+- affected tests, contracts, flows, steps, files, and repositories form a unified blast radius;
+- private absolute paths are converted to relative or opaque persistable paths;
+- contract version mismatches become explicit compatibility findings;
+- missing semantic mapping remains partial-evidence rather than guessed impact.
+
+Status: VERIFIED — diff-impact lab run 36755232124; 11 contract tests plus real CodeGraph cross-repository propagation validation passed.

@@ -44,6 +44,19 @@ For cross-repository runtime analysis:
 - enforce max-hop and max-path budgets;
 - report cycles and unreachable steps rather than silently dropping them.
 
+## Diff → impact
+
+When reviewing a change set:
+- run local semantic impact analysis first, preferably with CodeGraph;
+- normalize the change with `scripts/diff_impact_normalize.py`;
+- preserve affected files, symbols, and tests from the local provider;
+- explicitly attach changed contract IDs when an API/event/schema/package surface is affected;
+- propagate impact only through verified process steps and matched contract edges;
+- select downstream repositories and end-to-end flows for review;
+- treat version mismatch as a compatibility finding;
+- never infer file-level blast radius from filenames alone;
+- redact private absolute paths before persistence.
+
 ## Required stages
 
 1. Intake
