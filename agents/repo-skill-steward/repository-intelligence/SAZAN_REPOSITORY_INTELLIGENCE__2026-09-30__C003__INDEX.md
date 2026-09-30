@@ -160,4 +160,4 @@ Safety:
 
 Current release verdict: BLOCKED — Codex runtime, Claude runtime, and live provider parity are not yet verified.
 
-Engine status: CANDIDATE — awaiting release-readiness lab evidence.
+Engine status: VERIFIED / PROMOTED — release-readiness run 36770593359 passed; all repository regressions passed.
