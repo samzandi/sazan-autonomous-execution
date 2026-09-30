@@ -2,7 +2,21 @@
 
 Context: C002
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
+
+Verified lab run: 36757285076
+
+Verified:
+- eighteen budget/orchestration contract tests passed;
+- strict stage-specific measurements were enforced;
+- missing required metrics failed closed;
+- cumulative token and output accounting was deterministic;
+- graph-node accounting used a maximum ceiling;
+- timeout overruns blocked;
+- provider truncation blocked by default;
+- budget rejection did not mutate the source artifact;
+- upstream provider failure remained the primary failure cause;
+- legacy non-strict manifests remained compatible.
 
 ## Purpose
 
