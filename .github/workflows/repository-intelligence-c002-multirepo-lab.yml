@@ -1,0 +1,173 @@
+name: Repository Intelligence C002 Multi Repo Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-c002-multirepo-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+      - "tests/test_repository_intelligence_multirepo.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  multi-repo-registry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Compile registry
+        run: python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/multi_repo_registry.py
+
+      - name: Run multi-repository contract tests
+        run: python3 -m unittest tests/test_repository_intelligence_multirepo.py
+
+      - name: Build four-repository workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/workspace.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "workspace_id": "c002-multirepo-fixture",
+            "repositories": [
+              {
+                "repository_id": "web",
+                "visibility": "local-fixture",
+                "source": "fixture/web",
+                "revision": "web-001",
+                "requires": [
+                  {
+                    "key": "http.checkout.v1",
+                    "kind": "http-api",
+                    "version": "1.0.0",
+                    "provider_hint": "api",
+                    "state": "observed",
+                    "evidence": ["web:checkout-client"]
+                  },
+                  {
+                    "key": "external.stripe.v1",
+                    "kind": "http-api",
+                    "version": "2026-09",
+                    "scope": "external",
+                    "state": "observed",
+                    "evidence": ["web:external-payment-client"]
+                  }
+                ]
+              },
+              {
+                "repository_id": "api",
+                "visibility": "local-fixture",
+                "source": "fixture/api",
+                "revision": "api-001",
+                "provides": [
+                  {
+                    "key": "http.checkout.v1",
+                    "kind": "http-api",
+                    "version": "1.0.0",
+                    "surface": "POST /checkout",
+                    "state": "observed",
+                    "evidence": ["api:openapi"]
+                  },
+                  {
+                    "key": "event.order.created",
+                    "kind": "event",
+                    "version": "1.0.0",
+                    "state": "observed",
+                    "evidence": ["api:event-publisher"]
+                  }
+                ],
+                "requires": [
+                  {
+                    "key": "schema.checkout.v1",
+                    "kind": "schema",
+                    "version": "1.0.0",
+                    "provider_hint": "contracts",
+                    "state": "observed",
+                    "evidence": ["api:schema-import"]
+                  }
+                ]
+              },
+              {
+                "repository_id": "contracts",
+                "visibility": "local-fixture",
+                "source": "fixture/contracts",
+                "revision": "contracts-001",
+                "provides": [
+                  {
+                    "key": "schema.checkout.v1",
+                    "kind": "schema",
+                    "version": "1.0.0",
+                    "state": "observed",
+                    "evidence": ["contracts:checkout-schema"]
+                  }
+                ]
+              },
+              {
+                "repository_id": "repo_worker_01",
+                "visibility": "private",
+                "source": "secret-owner/private-worker",
+                "revision": "worker-001",
+                "requires": [
+                  {
+                    "key": "event.order.created",
+                    "kind": "event",
+                    "version": "1.0.0",
+                    "provider_hint": "api",
+                    "state": "observed",
+                    "evidence": ["worker:event-consumer"]
+                  }
+                ]
+              }
+            ]
+          }
+          JSON
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/multi_repo_registry.py             "$RUNNER_TEMP/workspace.json"             --registry "$RUNNER_TEMP/registry.json"             --contracts "$RUNNER_TEMP/contracts.json"             --require-no-blockers
+
+          grep -q '"matched_contracts": 3' "$RUNNER_TEMP/contracts.json"
+          grep -q '"external_requirements": 1' "$RUNNER_TEMP/contracts.json"
+          grep -q '"blockers": 0' "$RUNNER_TEMP/contracts.json"
+          grep -q '"status": "verified"' "$RUNNER_TEMP/contracts.json"
+          grep -q '"repo_worker_01"' "$RUNNER_TEMP/registry.json"
+          ! grep -q "secret-owner" "$RUNNER_TEMP/registry.json"
+          ! grep -q "secret-owner" "$RUNNER_TEMP/contracts.json"
+
+      - name: Verify version mismatch blocks workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          src = Path(os.environ["RUNNER_TEMP"]) / "workspace.json"
+          data = json.loads(src.read_text())
+          data["repositories"][0]["requires"][0]["version"] = "2.0.0"
+          (Path(os.environ["RUNNER_TEMP"]) / "workspace-mismatch.json").write_text(json.dumps(data))
+          PY
+
+          set +e
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/multi_repo_registry.py             "$RUNNER_TEMP/workspace-mismatch.json"             --registry "$RUNNER_TEMP/registry-mismatch.json"             --contracts "$RUNNER_TEMP/contracts-mismatch.json"             --require-no-blockers
+          code=$?
+          set -e
+
+          test "$code" -eq 5
+          grep -q '"type": "version-mismatch"' "$RUNNER_TEMP/contracts-mismatch.json"
+          grep -q '"status": "blocked"' "$RUNNER_TEMP/contracts-mismatch.json"
+
+      - name: Publish multi-repository evidence
+        shell: bash
+        run: |
+          {
+            echo "## C002 Multi-Repository Registry Lab"
+            echo
+            echo "- Four repository identities were registered."
+            echo "- Three internal cross-repository contracts matched."
+            echo "- One external dependency was recorded without becoming an internal blocker."
+            echo "- A private repository source name was removed from persisted outputs."
+            echo "- Deliberate contract version mismatch blocked the workspace."
+          } >> "$GITHUB_STEP_SUMMARY"
