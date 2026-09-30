@@ -23,6 +23,7 @@ def _load_module(name: str, path: Path):
 
 ENV = _load_module("evidence_envelope", HERE / "evidence_envelope.py")
 BUDGET = _load_module("budget_guard", HERE / "budget_guard.py")
+PROVIDER = _load_module("provider_health", HERE / "provider_health.py")
 PROMOTION = _load_module("evaluate_promotion", HERE / "evaluate_promotion.py")
 
 
@@ -56,12 +57,52 @@ def _load(path: Path) -> dict[str, Any]:
     return data
 
 
-def plan(envelope: dict[str, Any]) -> dict[str, Any]:
+def _provider_routing(
+    manifest_data: dict[str, Any],
+    envelope: dict[str, Any],
+) -> dict[str, Any] | None:
+    policy = envelope["provider_policy"]
+    if not policy["strict"]:
+        return None
+    health = manifest_data.get("provider_health")
+    if not isinstance(health, dict):
+        raise ValueError("strict provider routing requires provider_health observations")
+    stages = [
+        stage["id"]
+        for stage in envelope["stages"]
+        if stage["status"] != "skipped"
+    ]
+    return PROVIDER.route_pipeline(
+        health,
+        visibility=envelope["target"]["visibility"],
+        stages=stages,
+        allow_degraded=policy["allow_degraded"],
+    )
+
+
+def _route_map(routing: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+    if routing is None:
+        return {}
+    return {item["stage"]: item for item in routing["stages"]}
+
+
+def plan(
+    envelope: dict[str, Any],
+    routing: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    routes = _route_map(routing)
     stages = []
     for stage in envelope["stages"]:
+        route = routes.get(stage["id"])
+        provider = (
+            route["selected_provider"]
+            if route is not None and route["selected_provider"] is not None
+            else PROVIDERS[stage["id"]]
+        )
         stages.append({
             "id": stage["id"],
-            "provider": PROVIDERS[stage["id"]],
+            "provider": provider,
+            "provider_route": route,
             "required": stage["status"] != "skipped",
             "status": stage["status"],
         })
@@ -72,6 +113,8 @@ def plan(envelope: dict[str, Any]) -> dict[str, Any]:
         "target": envelope["target"],
         "budgets": envelope["budgets"],
         "budget_policy": envelope["budget_policy"],
+        "provider_policy": envelope["provider_policy"],
+        "provider_routing": routing,
         "stages": stages,
         "rules": {
             "stop_on_failed": True,
@@ -81,9 +124,10 @@ def plan(envelope: dict[str, Any]) -> dict[str, Any]:
             "private_identity_persistence": False,
             "budget_enforcement": True,
             "budget_violation_blocks_stage": True,
+            "provider_health_enforcement": envelope["provider_policy"]["strict"],
+            "silent_provider_fallback": False,
         },
     }
-
 
 
 def _apply_with_budget(
@@ -187,18 +231,69 @@ def promotion_package(envelope: dict[str, Any]) -> dict[str, Any]:
 
 
 def run(manifest: Path, stage_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
-    envelope = ENV.new_envelope(_load(manifest))
-    run_plan = plan(envelope)
+    manifest_data = _load(manifest)
+    envelope = ENV.new_envelope(manifest_data)
+    routing = _provider_routing(manifest_data, envelope)
+    routes = _route_map(routing)
+    run_plan = plan(envelope, routing)
 
     for stage in envelope["stages"]:
         if stage["status"] == "skipped":
             continue
+
+        route = routes.get(stage["id"])
+        if route is not None and route["decision"] == "blocked":
+            blocked = {
+                "stage": stage["id"],
+                "status": "blocked",
+                "provider": None,
+                "provider_route": route,
+                "evidence": route["evidence"],
+                "artifacts": [],
+                "metrics": {},
+                "constraints": route["blockers"],
+                "error": "; ".join(route["blockers"]),
+            }
+            envelope = _apply_with_budget(envelope, blocked)
+            break
+
         result_path = stage_dir / f"{stage['id']}.json"
         if not result_path.exists():
             break
         result = _load(result_path)
         if result.get("stage") != stage["id"]:
             raise ValueError(f"{result_path}: stage ID mismatch")
+
+        if route is not None:
+            selected = route["selected_provider"]
+            actual = str(result.get("provider", "")).strip()
+            if actual != selected:
+                mismatch = {
+                    "stage": stage["id"],
+                    "status": "blocked",
+                    "provider": actual or None,
+                    "provider_route": route,
+                    "evidence": list(route["evidence"]),
+                    "artifacts": [],
+                    "metrics": {},
+                    "constraints": [
+                        f"stage provider does not match routed provider: {actual or '<missing>'} != {selected}"
+                    ],
+                    "error": "provider routing mismatch",
+                }
+                envelope = _apply_with_budget(envelope, mismatch)
+                break
+            result = dict(result)
+            result["provider_route"] = route
+            result["evidence"] = sorted(set(
+                list(result.get("evidence", [])) + list(route["evidence"])
+            ))
+            result["constraints"] = sorted(set(
+                list(result.get("constraints", [])) + list(route["constraints"])
+            ))
+            if route["fallback_used"] and result.get("status") == "passed":
+                result["status"] = "passed-with-constraints"
+
         envelope = _apply_with_budget(envelope, result)
         if envelope["status"] in {"failed", "blocked"}:
             break
@@ -209,29 +304,51 @@ def run(manifest: Path, stage_dir: Path) -> tuple[dict[str, Any], dict[str, Any]
         if s["id"] != "L7-promotion" and s["status"] != "skipped"
     ]
     if all(s["status"] in {"passed", "passed-with-constraints"} for s in pre_l7):
-        package = promotion_package(envelope)
-        decision = PROMOTION.evaluate(package)
-        l7_result = {
-            "stage": "L7-promotion",
-            "status": (
-                "passed-with-constraints"
-                if decision["decision"] == "eligible-with-constraints"
-                else "passed"
-                if decision["decision"] == "eligible-for-parent-promotion"
-                else "blocked"
-            ),
-            "provider": PROVIDERS["L7-promotion"],
-            "evidence": [
-                f"promotion-decision:{decision['decision']}",
-                "machine-gate:auto-promote=false",
-            ],
-            "artifacts": [],
-            "metrics": {},
-            "constraints": decision["constraints"],
-            "error": None if decision["decision"] in PROMOTION.FINAL_ELIGIBLE else "; ".join(decision["reasons"]),
-        }
-        envelope = _apply_with_budget(envelope, l7_result)
-        envelope["promotion"] = decision
+        l7_route = routes.get("L7-promotion")
+        if l7_route is not None and l7_route["decision"] == "blocked":
+            envelope = _apply_with_budget(envelope, {
+                "stage": "L7-promotion",
+                "status": "blocked",
+                "provider": None,
+                "provider_route": l7_route,
+                "evidence": l7_route["evidence"],
+                "artifacts": [],
+                "metrics": {},
+                "constraints": l7_route["blockers"],
+                "error": "; ".join(l7_route["blockers"]),
+            })
+        else:
+            package = promotion_package(envelope)
+            decision = PROMOTION.evaluate(package)
+            selected_provider = (
+                l7_route["selected_provider"]
+                if l7_route is not None
+                else PROVIDERS["L7-promotion"]
+            )
+            route_evidence = list(l7_route["evidence"]) if l7_route is not None else []
+            route_constraints = list(l7_route["constraints"]) if l7_route is not None else []
+            l7_result = {
+                "stage": "L7-promotion",
+                "status": (
+                    "passed-with-constraints"
+                    if decision["decision"] == "eligible-with-constraints" or route_constraints
+                    else "passed"
+                    if decision["decision"] == "eligible-for-parent-promotion"
+                    else "blocked"
+                ),
+                "provider": selected_provider,
+                "provider_route": l7_route,
+                "evidence": sorted(set([
+                    f"promotion-decision:{decision['decision']}",
+                    "machine-gate:auto-promote=false",
+                ] + route_evidence)),
+                "artifacts": [],
+                "metrics": {},
+                "constraints": sorted(set(decision["constraints"] + route_constraints)),
+                "error": None if decision["decision"] in PROMOTION.FINAL_ELIGIBLE else "; ".join(decision["reasons"]),
+            }
+            envelope = _apply_with_budget(envelope, l7_result)
+            envelope["promotion"] = decision
 
     ENV.validate_envelope(envelope)
     return run_plan, envelope
