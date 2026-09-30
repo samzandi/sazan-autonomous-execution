@@ -68,6 +68,15 @@ args="$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"line":
 grep -q "normalize_amount" "$RUNNER_TEMP/pre-impact.txt"
 grep -q "calculate_total" "$RUNNER_TEMP/pre-impact.txt"
 
+uv_archive="$RUNNER_TEMP/uv-x86_64-unknown-linux-gnu.tar.gz"
+curl -fsSL --retry 3 -o "$uv_archive" \
+  https://github.com/astral-sh/uv/releases/download/0.12.21/uv-x86_64-unknown-linux-gnu.tar.gz
+echo "23f02075b652bb1df64178cfae41b5caf160822e720e2663568f3f5d63bc52c0  $uv_archive" | sha256sum -c -
+mkdir -p "$RUNNER_TEMP/uv-bin"
+tar -xzf "$uv_archive" -C "$RUNNER_TEMP/uv-bin" --strip-components=1
+export PATH="$RUNNER_TEMP/uv-bin:$PATH"
+uv --version
+
 venv="$RUNNER_TEMP/serena-venv"
 python3 -m venv "$venv"
 "$venv/bin/python" -m pip install --quiet   "git+https://github.com/oraios/serena.git@949a27ef1e5fda1a6e7b561e777bcece345c6ffd"
