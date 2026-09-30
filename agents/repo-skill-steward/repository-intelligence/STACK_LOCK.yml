@@ -1,4 +1,4 @@
-version: 10
+version: 11
 verified_at: 2026-09-30
 context: C001
 
@@ -163,7 +163,11 @@ components:
     pinned_version: 1.7.0
     pinned_commit: 949a27ef1e5fda1a6e7b561e777bcece345c6ffd
     license: MIT
-    status: proposed-primary-pending-lab
+    status: promoted-primary-isolated-process
+    lab_run_id: 36745934710
+    runtime_prerequisite:
+      uv_version: 0.12.21
+      uv_linux_x86_64_sha256: 23f02075b652bb1df64178cfae41b5caf160822e720e2663568f3f5d63bc52c0
     capabilities:
       - find-symbol
       - find-referencing-symbols
@@ -180,6 +184,8 @@ components:
       - frozen-last-mit-release
       - language-server-capabilities-vary-by-language
       - must-be-guarded-by-pre-and-post-verification
+      - run-behind-mcp-or-subprocess-boundary
+      - in-process-headless-teardown-can-terminate-caller
 
   - name: serena-v2
     role: future-external-semantic-editing-reference
