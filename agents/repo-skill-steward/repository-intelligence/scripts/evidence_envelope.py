@@ -110,6 +110,13 @@ def new_envelope(manifest: dict[str, Any]) -> dict[str, Any]:
             "persist_private_identity": False,
         },
         "budgets": normalized_budgets,
+        "budget_usage": {
+            "context_tokens": 0,
+            "graph_nodes": 0,
+            "output_bytes": 0,
+            "stages_measured": 0,
+            "last_stage_elapsed_seconds": None,
+        },
         "stages": stages,
         "cross_cutting": {
             "license": {"status": "pending", "evidence": []},
@@ -195,6 +202,18 @@ def validate_envelope(envelope: dict[str, Any]) -> None:
         raise ValueError("unsupported evidence envelope schema version")
     if envelope.get("status") not in RUN_STATES:
         raise ValueError("invalid run status")
+    usage = envelope.get("budget_usage")
+    if not isinstance(usage, dict):
+        raise ValueError("budget_usage must be an object")
+    required_usage = {
+        "context_tokens",
+        "graph_nodes",
+        "output_bytes",
+        "stages_measured",
+        "last_stage_elapsed_seconds",
+    }
+    if set(usage) != required_usage:
+        raise ValueError("budget_usage does not match C002 contract")
     stages = envelope.get("stages")
     if not isinstance(stages, list):
         raise ValueError("stages must be a list")
