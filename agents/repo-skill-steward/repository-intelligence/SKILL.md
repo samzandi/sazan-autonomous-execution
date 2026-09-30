@@ -70,4 +70,7 @@ Use when a repository must be evaluated, reverse engineered, compared, documente
 ## Promotion rule
 
 Repository Intelligence may propose; the parent Repo & Skill Steward decides promotion.
+The L7 promotion gate must evaluate provenance, license, security, lab evidence, capability delta, rollback, private-data handling, and verifier state.
+The automated result may be eligible-for-parent-promotion, eligible-with-constraints, pending-evidence, or rejected.
+Auto-promotion is forbidden.
 No evidence = no promotion.
