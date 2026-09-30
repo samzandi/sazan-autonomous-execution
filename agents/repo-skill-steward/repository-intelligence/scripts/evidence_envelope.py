@@ -119,6 +119,7 @@ def new_envelope(manifest: dict[str, Any]) -> dict[str, Any]:
             "persist_private_identity": False,
         },
         "budgets": normalized_budgets,
+        "budget_policy": budget_policy,
         "budget_usage": {
             "context_tokens": 0,
             "graph_nodes": 0,
