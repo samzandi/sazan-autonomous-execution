@@ -37,6 +37,17 @@ PROVIDERS = {
     "L7-promotion": "sazan-promotion-gate",
 }
 
+STRICT_BUDGET_METRICS = {
+    "L0-intake": ["output_bytes", "elapsed_seconds"],
+    "L1-context-packaging": ["context_tokens", "output_bytes", "elapsed_seconds"],
+    "L2-semantic-graph": ["graph_nodes", "output_bytes", "elapsed_seconds"],
+    "L3-architecture-presentation": ["output_bytes", "elapsed_seconds"],
+    "L4-wiki-qa": ["context_tokens", "output_bytes", "elapsed_seconds"],
+    "L5-semantic-editing": ["output_bytes", "elapsed_seconds"],
+    "L6-reverse-engineering": ["context_tokens", "output_bytes", "elapsed_seconds"],
+    "L7-promotion": [],
+}
+
 
 def _load(path: Path) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -60,6 +71,7 @@ def plan(envelope: dict[str, Any]) -> dict[str, Any]:
         "run_id": envelope["run_id"],
         "target": envelope["target"],
         "budgets": envelope["budgets"],
+        "budget_policy": envelope["budget_policy"],
         "stages": stages,
         "rules": {
             "stop_on_failed": True,
@@ -79,15 +91,19 @@ def _apply_with_budget(
     result: dict[str, Any],
 ) -> dict[str, Any]:
     stage_id = str(result.get("stage", "")).strip()
-    metrics = result.get("metrics", {})
+    policy = envelope["budget_policy"]
     decision = BUDGET.evaluate(
         envelope["budgets"],
         envelope.get("budget_usage"),
         stage_id,
-        metrics,
+        result.get("metrics", {}),
+        required_metrics=STRICT_BUDGET_METRICS.get(stage_id, []),
+        strict=policy["strict"],
+        allow_truncation=policy["allow_truncation"],
     )
 
     guarded = dict(result)
+    guarded["budget"] = decision
     guarded["constraints"] = sorted(set(
         list(result.get("constraints", [])) + decision["constraints"]
     ))
@@ -104,15 +120,8 @@ def _apply_with_budget(
 
     updated = ENV.apply_stage_result(envelope, guarded)
     updated["budget_usage"] = decision["usage"]
-
-    stage = next(s for s in updated["stages"] if s["id"] == stage_id)
-    stage["budget"] = {
-        "decision": decision["decision"],
-        "remaining": decision["remaining"],
-        "violations": decision["violations"],
-        "unmeasured": decision["unmeasured"],
-    }
     return updated
+
 
 def promotion_package(envelope: dict[str, Any]) -> dict[str, Any]:
     cross = envelope["cross_cutting"]
