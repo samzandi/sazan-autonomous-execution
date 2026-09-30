@@ -102,6 +102,23 @@ def _apply_with_budget(
     result: dict[str, Any],
 ) -> dict[str, Any]:
     stage_id = str(result.get("stage", "")).strip()
+    original_status = str(result.get("status", "")).strip()
+
+    # Preserve an upstream provider/policy failure as the primary cause. A failed
+    # provider is not required to manufacture usage telemetry after failure.
+    if original_status in {"failed", "blocked"}:
+        guarded = dict(result)
+        guarded["budget"] = {
+            "schema_version": 1,
+            "stage": stage_id,
+            "decision": "not-evaluated",
+            "reason": f"stage already {original_status} before budget evaluation",
+            "usage": dict(envelope.get("budget_usage", BUDGET.initial_usage())),
+            "violations": [],
+            "constraints": [],
+        }
+        return ENV.apply_stage_result(envelope, guarded)
+
     policy = envelope["budget_policy"]
     decision = BUDGET.evaluate(
         envelope["budgets"],
@@ -119,17 +136,15 @@ def _apply_with_budget(
         list(result.get("constraints", [])) + decision["constraints"]
     ))
 
-    provider_status = guarded.get("status")
-    if provider_status in {"passed", "passed-with-constraints"}:
-        if decision["decision"] == "block":
-            guarded["status"] = "blocked"
-            guarded["error"] = "; ".join(decision["violations"])
-            guarded["constraints"] = sorted(set(
-                guarded["constraints"] + decision["violations"]
-            ))
-        elif decision["decision"] == "allow-with-constraints":
-            if guarded.get("status") == "passed":
-                guarded["status"] = "passed-with-constraints"
+    if decision["decision"] == "block":
+        guarded["status"] = "blocked"
+        guarded["error"] = "; ".join(decision["violations"])
+        guarded["constraints"] = sorted(set(
+            guarded["constraints"] + decision["violations"]
+        ))
+    elif decision["decision"] == "allow-with-constraints":
+        if guarded.get("status") == "passed":
+            guarded["status"] = "passed-with-constraints"
 
     updated = ENV.apply_stage_result(envelope, guarded)
     updated["budget_usage"] = decision["usage"]
