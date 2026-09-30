@@ -1,4 +1,4 @@
-version: 2
+version: 3
 verified_at: 2026-09-30
 context: C001
 
@@ -8,7 +8,13 @@ components:
     repository: yamadashy/repomix
     pinned_version: 1.18.1
     license: MIT
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36739897813
+    lab_observation:
+      output_bytes: 2277
+      output_lines: 86
+      elapsed_ms: 6186
+      gitignore_marker_present: false
     evidence:
       - token-aware-packaging
       - git-aware-filtering
@@ -22,7 +28,13 @@ components:
     repository: coderamp-labs/gitingest
     pinned_version: 0.3.1
     license: MIT
-    status: proposed-fallback-pending-lab
+    status: promoted-fallback
+    lab_run_id: 36739897813
+    lab_observation:
+      output_bytes: 1281
+      output_lines: 53
+      elapsed_ms: 1250
+      gitignore_marker_present: false
     evidence:
       - cli
       - python-sync-api
@@ -36,8 +48,17 @@ components:
     repository: mufeedvh/code2prompt
     pinned_version: 4.2.0
     license: MIT
-    status: proposed-agent-path-pending-lab
+    status: promoted-agent-path-with-git-repository-constraint
     linux_x86_64_sha256: 69ff91f6e690de4814f38eb79d1fff5971d5a39bdc82b23ea784dcd450bf965f
+    lab_run_id: 36739897813
+    lab_observation:
+      output_bytes: 827
+      output_lines: 59
+      elapsed_ms: 52
+      gitignore_marker_present: false
+    constraints:
+      - plain-directory lab attempt included the gitignored marker
+      - use against an initialized Git repository when gitignore semantics are required
     evidence:
       - rust-core
       - cli-and-tui
@@ -101,6 +122,7 @@ context_packaging_routing:
 policy:
   unknown_license: reference-only
   noncommercial_license: no-commercial-embedding
+  performance_numbers_are_fixture_specific: true
   promotion_requires:
     - provenance
     - license-review
