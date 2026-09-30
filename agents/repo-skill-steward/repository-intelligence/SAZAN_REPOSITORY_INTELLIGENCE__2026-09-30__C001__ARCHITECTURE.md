@@ -21,19 +21,35 @@ Rationale:
 - Code2Prompt adds fast Rust-based context engineering, templates, Python SDK, MCP support, and an agent skill.
 
 ### L2 — Semantic Graph
-Preferred candidate: CodeGraph
+Primary engine: CodeGraph Community 0.20.1
+License: Apache-2.0
+Baseline mode: graph-only
+Evidence: semantic graph lab run 36740772666
 
-Requirements:
-- symbols
-- imports
-- references
-- call chains
-- dependency/dependent relationships
+Verified baseline:
+- symbol discovery
+- cross-file callers
+- dependency relationships
 - impact analysis
-- persistent graph state
-- MCP exposure
+- digest-pinned binary execution
+- telemetry-off operation
+- MCP-compatible tool surface
 
-GitNexus is used only as a benchmark/reference architecture while its non-commercial license remains incompatible with embedded commercial use.
+Operational rule:
+- query graph evidence before using text search to infer structural relationships;
+- use text search as a fallback for literals, unsupported languages, missing graph evidence, or verification;
+- keep Sazan graph schemas and orchestration engine-independent.
+
+GitNexus remains benchmark/reference-only because its current PolyForm Noncommercial license is incompatible with embedding in Sazan commercial components.
+
+Independent Sazan roadmap inspired by capability gaps:
+- multi-repository registry
+- cross-repository contracts
+- process/execution-flow synthesis
+- diff-to-impact normalization
+- graph response token budgets
+- graph-aware agent hooks
+- optional PDG/control/data-flow and taint adapters
 
 ### L3 — Architecture Presentation
 Primary visual candidate: GitDiagram
@@ -81,4 +97,4 @@ Repository
 
 ## Design rule
 
-No single upstream project is the Sazan engine. Sazan owns the orchestration, evidence model, policy gates, and cross-tool adapters.
+No single upstream project is the Sazan engine. Sazan owns the orchestration, evidence model, policy gates, cross-repository identity, and cross-tool adapters.
