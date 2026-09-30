@@ -1,0 +1,152 @@
+name: Repository Intelligence Wiki QA Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-wiki-qa-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wiki-qa-evidence:
+    runs-on: ubuntu-latest
+    env:
+      CODEGRAPH_TELEMETRY: "off"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Create isolated repository fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/wiki-qa-fixture"
+          mkdir -p "$fixture/core" "$fixture/service" "$fixture/api" "$fixture/docs"
+          touch "$fixture/core/__init__.py" "$fixture/service/__init__.py" "$fixture/api/__init__.py"
+
+          cat > "$fixture/core/money.py" <<'PY'
+          def normalize_amount(value):
+              """Normalize a monetary value to two decimals."""
+              return round(float(value), 2)
+          PY
+
+          cat > "$fixture/service/orders.py" <<'PY'
+          from core.money import normalize_amount
+
+          def calculate_total(items):
+              """Calculate checkout total from line-item amounts."""
+              subtotal = sum(items)
+              return normalize_amount(subtotal)
+          PY
+
+          cat > "$fixture/api/checkout.py" <<'PY'
+          from service.orders import calculate_total
+
+          def handle_checkout(items):
+              """HTTP-style checkout entry point."""
+              return calculate_total(items)
+          PY
+
+          cat > "$fixture/docs/OVERVIEW.md" <<'MD'
+          # Checkout Overview
+
+          The checkout path enters at `handle_checkout`, delegates to
+          `calculate_total`, and normalizes money through `normalize_amount`.
+          MD
+
+          git init -q "$fixture"
+          git -C "$fixture" config user.email "ci@example.invalid"
+          git -C "$fixture" config user.name "Sazan CI"
+          git -C "$fixture" add .
+          git -C "$fixture" commit -qm "fixture"
+          echo "FIXTURE=$fixture" >> "$GITHUB_ENV"
+
+      - name: Download and verify CodeGraph 0.20.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/codegraph-server"
+          curl -fsSL --retry 3 -o "$bin" \
+            https://github.com/codegraph-ai/CodeGraph/releases/download/v0.20.1/codegraph-server-linux-x64
+          echo "32b26422fa5ffe0a130955b7f7df771f722b2d427d67f53f104d9907bdfb24a6  $bin" | sha256sum -c -
+          chmod +x "$bin"
+          echo "CODEGRAPH_BIN=$bin" >> "$GITHUB_ENV"
+
+      - name: Generate architecture wiki seed
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$FIXTURE"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_generate_architecture_doc \
+            --tool-args '{"topN":5}' \
+            > "$RUNNER_TEMP/architecture-doc.json"
+
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          data = json.loads((Path(os.environ["RUNNER_TEMP"]) / "architecture-doc.json").read_text())
+          markdown = data.get("markdown", "")
+          assert "# Architecture" in markdown
+          assert "## Modules" in markdown
+          assert "Circular Dependencies" in markdown
+          assert data.get("stats", {}).get("files", 0) >= 3
+          (Path(os.environ["RUNNER_TEMP"]) / "ARCHITECTURE.generated.md").write_text(markdown, encoding="utf-8")
+          PY
+
+      - name: Verify natural-language curated context
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$FIXTURE"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_get_curated_context \
+            --tool-args '{"query":"how does checkout calculate the total","maxSymbols":5,"maxTokens":4000}' \
+            > "$RUNNER_TEMP/curated-context.json"
+
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          data = json.loads((Path(os.environ["RUNNER_TEMP"]) / "curated-context.json").read_text())
+          assert data.get("query") == "how does checkout calculate the total"
+          assert data.get("metadata", {}).get("maxTokens") == 4000
+          text = json.dumps(data)
+          assert any(name in text for name in ("handle_checkout", "calculate_total", "normalize_amount"))
+          PY
+
+      - name: Verify architecture renderer integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          uri="$(python3 -c 'from pathlib import Path; import os; print(Path(os.environ["FIXTURE"] + "/api/checkout.py").resolve().as_uri())')"
+          args="$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"depth":3,"direction":"imports"}))' "$uri")"
+          cd "$FIXTURE"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_get_dependency_graph \
+            --tool-args "$args" \
+            > "$RUNNER_TEMP/deps.json"
+
+          python3 "$GITHUB_WORKSPACE/agents/repo-skill-steward/repository-intelligence/scripts/render_architecture_mermaid.py" \
+            "$RUNNER_TEMP/deps.json" \
+            --title "Repository Wiki Architecture" \
+            --output "$RUNNER_TEMP/architecture.mmd"
+
+          grep -q "^flowchart LR" "$RUNNER_TEMP/architecture.mmd"
+
+      - name: Publish Wiki QA evidence
+        shell: bash
+        run: |
+          {
+            echo "## Repository Intelligence Wiki & QA Lab"
+            echo
+            echo "- CodeGraph graph-only generated an architecture wiki seed."
+            echo "- Natural-language curated context returned repository evidence."
+            echo "- The existing Sazan Mermaid renderer consumed the same graph layer."
+            echo "- No external LLM, embedding API, vector database, or user secret was required for this baseline."
+          } >> "$GITHUB_STEP_SUMMARY"
