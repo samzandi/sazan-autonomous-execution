@@ -126,6 +126,7 @@ def normalize(
     all_impacted_flows: set[str] = set()
     all_impacted_steps: set[str] = set()
     incomplete: list[dict[str, Any]] = []
+    related_test_targets: set[str] = set()
 
     for index, raw in enumerate(raw_changes):
         if not isinstance(raw, dict):
@@ -167,6 +168,16 @@ def normalize(
         explicit_symbols = _list(local.get("symbols"), f"{where}.local_impact.symbols")
         for symbol in explicit_symbols:
             symbol_names.add(_text(symbol, f"{where}.local_impact.symbols[]"))
+
+        local_files = sorted(set(
+            _text(value, f"{where}.local_impact.files[]")
+            for value in _list(local.get("files"), f"{where}.local_impact.files")
+        ))
+        local_tests = sorted(set(
+            _text(value, f"{where}.local_impact.tests[]")
+            for value in _list(local.get("tests"), f"{where}.local_impact.tests")
+        ))
+
         if surface_kind == "symbol":
             symbol_names.add(identifier)
 
@@ -264,6 +275,8 @@ def normalize(
         all_impacted_flows.update(impacted_flow_ids)
         all_impacted_steps.update(impacted_steps | transitive_steps)
 
+        related_test_targets.update(local_tests)
+
         normalized_changes.append({
             "change_id": change_id,
             "repository_id": repository_id,
@@ -280,6 +293,12 @@ def normalize(
             "impacted_flows": sorted(impacted_flow_ids),
             "review_repositories": review_repos,
             "compatibility": compatibility,
+            "local_impact": {
+                "symbols": sorted(symbol_names),
+                "files": local_files,
+                "tests": local_tests,
+                "evidence": local_evidence,
+            },
             "constraints": sorted(set(constraints)),
         })
 
@@ -306,6 +325,11 @@ def normalize(
         test_scopes.append({
             "flow_id": fid,
             "reason": "end-to-end regression validation required",
+        })
+    for target in sorted(related_test_targets):
+        test_scopes.append({
+            "test_target": target,
+            "reason": "related local test from semantic diff evidence",
         })
 
     status = "partial-evidence" if incomplete_unique else "verified"
@@ -338,6 +362,7 @@ def normalize(
             "impacted_steps": len(all_impacted_steps),
             "version_mismatches": len(version_mismatch_changes),
             "incomplete_evidence": len(incomplete_unique),
+            "related_test_targets": len(related_test_targets),
         },
     }
 
