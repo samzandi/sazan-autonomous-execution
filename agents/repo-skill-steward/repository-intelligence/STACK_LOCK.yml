@@ -62,7 +62,8 @@ components:
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py
     local_semantic_provider: codegraph-analyze-impact
     license: repository-license
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36754987264
     properties:
       - evidence-backed-change-observations
       - codegraph-local-semantic-impact
