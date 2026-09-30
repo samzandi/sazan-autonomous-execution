@@ -32,6 +32,18 @@ When analysis spans more than one repository:
 - never persist private/internal repository source names;
 - keep external dependencies external unless evidence shows an internal provider.
 
+## Process / execution flows
+
+For cross-repository runtime analysis:
+- synthesize flows with `scripts/process_flow_synthesis.py`;
+- use only registry-backed repository IDs;
+- allow cross-repository hops only through matched contracts;
+- require explicit runtime direction for each contract binding;
+- aggregate evidence across local and cross-repository hops;
+- downgrade the full path when any hop is inferred;
+- enforce max-hop and max-path budgets;
+- report cycles and unreachable steps rather than silently dropping them.
+
 ## Required stages
 
 1. Intake
