@@ -2,7 +2,7 @@
 
 Context: C003
 Date: 2026-09-30
-Status: ENGINE CANDIDATE
+Status: ENGINE VERIFIED / PROMOTED
 Milestone: 3
 
 ## Goal
@@ -49,3 +49,19 @@ Allowed provider differences:
 The parity engine can be independently verified before live provider credentials are available.
 
 A live parity verdict remains BLOCKED until both Milestone 1 and Milestone 2 produce verified runtime-proof reports on the same repository HEAD and deterministic baseline.
+
+
+## Verification evidence
+
+- parity lab workflow run: 36768157558;
+- contract tests: PASSED;
+- verified-parity CLI fixture: PASSED;
+- sensitive-marker rejection: PASSED;
+- provider-blocker rejection: PASSED;
+- same-HEAD enforcement: PASSED;
+- same-baseline enforcement: PASSED;
+- all repository regression workflows: PASSED;
+- PR #31: MERGED;
+- merge commit: 9f25127b019ae42c58d5beda56f7860dcb24f1f8.
+
+The engine is promoted. The live cross-provider parity verdict remains BLOCKED until both provider runtime proofs are independently verified.
