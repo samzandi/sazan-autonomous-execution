@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          fixture="$RUNNER_TEMP/api-impact-fixture"
+          fixture="$RUNNER_TEMP/api-diff-fixture"
           mkdir -p "$fixture/api" "$fixture/tests"
           touch "$fixture/api/__init__.py"
 
@@ -79,29 +79,26 @@ jobs:
           chmod +x "$bin"
           echo "CODEGRAPH_BIN=$bin" >> "$GITHUB_ENV"
 
-      - name: Collect real local diff evidence
+      - name: Collect real CodeGraph diff evidence
         shell: bash
         run: |
           set -euo pipefail
           cd "$API_FIXTURE"
-          "$CODEGRAPH_BIN" --graph-only \
-            --run-tool codegraph_pr_context \
-            --tool-args '{"baseBranch":"main","compact":false}' \
-            > "$RUNNER_TEMP/codegraph-pr-context.txt"
+          "$CODEGRAPH_BIN" --graph-only             --run-tool codegraph_pr_context             --tool-args '{"baseBranch":"main","compact":false}'             > "$RUNNER_TEMP/codegraph-pr-context.txt"
 
           test -s "$RUNNER_TEMP/codegraph-pr-context.txt"
           grep -q "handle_checkout" "$RUNNER_TEMP/codegraph-pr-context.txt"
           grep -q "test_checkout" "$RUNNER_TEMP/codegraph-pr-context.txt"
           grep -Eq '"risk_level"[[:space:]]*:[[:space:]]*"(low|medium|high)"|Risk:.*(low|medium|high)' "$RUNNER_TEMP/codegraph-pr-context.txt"
 
-      - name: Build workspace contracts and process flow
+      - name: Build multi-repository registry and flow
         shell: bash
         run: |
           set -euo pipefail
           cat > "$RUNNER_TEMP/workspace.json" <<'JSON'
           {
             "schema_version": 1,
-            "workspace_id": "c002-impact-fixture",
+            "workspace_id": "c002-diff-impact-fixture",
             "repositories": [
               {
                 "repository_id": "web",
@@ -121,7 +118,7 @@ jobs:
                 "repository_id": "api",
                 "visibility": "local-fixture",
                 "source": "fixture/api",
-                "revision": "api-001",
+                "revision": "api-002",
                 "provides": [
                   {
                     "key": "http.checkout.v1",
@@ -162,122 +159,143 @@ jobs:
           python3 - <<'PY'
           import json, os
           from pathlib import Path
-          tmp = Path(os.environ["RUNNER_TEMP"])
-          contracts = json.loads((tmp / "contracts.json").read_text())
+          p = Path(os.environ["RUNNER_TEMP"])
+          contracts = json.loads((p / "contracts.json").read_text())
           http_id = next(c["contract_id"] for c in contracts["contracts"] if c["kind"] == "http-api")
           event_id = next(c["contract_id"] for c in contracts["contracts"] if c["kind"] == "event")
           obs = {
-            "schema_version":1,
-            "workspace_id":"c002-impact-fixture",
-            "steps":[
-              {"step_id":"web.submit","repository_id":"web","label":"Submit","symbol":"submitCheckout","kind":"entry","entry":True,"state":"observed","evidence":["web:submit"]},
-              {"step_id":"web.http","repository_id":"web","label":"HTTP","symbol":"postCheckout","kind":"http-client","state":"observed","evidence":["web:http"]},
-              {"step_id":"api.handle","repository_id":"api","label":"Handle checkout","symbol":"handle_checkout","kind":"handler","state":"observed","evidence":["api:handler"]},
-              {"step_id":"api.publish","repository_id":"api","label":"Publish order.created","symbol":"publish_order_created","kind":"publisher","state":"observed","evidence":["api:publisher"]},
-              {"step_id":"worker.consume","repository_id":"repo_worker_01","label":"Consume event","symbol":"consume_order_created","kind":"consumer","state":"observed","evidence":["worker:consumer"]},
-              {"step_id":"worker.persist","repository_id":"repo_worker_01","label":"Persist","symbol":"persist_order","kind":"storage","terminal":True,"state":"observed","evidence":["worker:persist"]}
+            "schema_version": 1,
+            "workspace_id": "c002-diff-impact-fixture",
+            "steps": [
+              {"step_id":"web.submit","repository_id":"web","label":"Web submit","symbol":"submitCheckout","kind":"entry","entry":True,"state":"observed","evidence":["web:submit"]},
+              {"step_id":"web.http","repository_id":"web","label":"HTTP client","symbol":"postCheckout","kind":"http-client","state":"observed","evidence":["web:http"]},
+              {"step_id":"api.handle","repository_id":"api","label":"API checkout","symbol":"handle_checkout","kind":"http-handler","state":"observed","evidence":["api:handler"]},
+              {"step_id":"api.publish","repository_id":"api","label":"Publish event","symbol":"publish_order_created","kind":"event-publisher","state":"observed","evidence":["api:publish"]},
+              {"step_id":"worker.consume","repository_id":"repo_worker_01","label":"Consume event","symbol":"consume_order_created","kind":"event-consumer","state":"observed","evidence":["worker:consume"]},
+              {"step_id":"worker.store","repository_id":"repo_worker_01","label":"Store order","symbol":"persist_order","kind":"storage-write","terminal":True,"state":"observed","evidence":["worker:store"]}
             ],
-            "edges":[
+            "edges": [
               {"from":"web.submit","to":"web.http","relation":"calls","state":"observed","evidence":["web:call"]},
-              {"from":"api.handle","to":"api.publish","relation":"calls","state":"observed","evidence":["api:call"]},
-              {"from":"worker.consume","to":"worker.persist","relation":"calls","state":"observed","evidence":["worker:call"]}
+              {"from":"api.handle","to":"api.publish","relation":"publishes","state":"observed","evidence":["api:call"]},
+              {"from":"worker.consume","to":"worker.store","relation":"writes","state":"observed","evidence":["worker:call"]}
             ],
-            "bindings":[
+            "bindings": [
               {"contract_id":http_id,"provider_step":"api.handle","consumer_step":"web.http","flow_direction":"consumer-to-provider","state":"observed","evidence":["binding:http"]},
               {"contract_id":event_id,"provider_step":"api.publish","consumer_step":"worker.consume","flow_direction":"provider-to-consumer","state":"observed","evidence":["binding:event"]}
             ]
           }
-          (tmp / "flow-observations.json").write_text(json.dumps(obs))
-          (tmp / "event-contract-id.txt").write_text(event_id)
+          (p / "observations.json").write_text(json.dumps(obs))
           PY
 
-          python3 agents/repo-skill-steward/repository-intelligence/scripts/process_flow_synthesis.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/flow-observations.json"             --json "$RUNNER_TEMP/flows.json"             --markdown "$RUNNER_TEMP/FLOWS.md"             --require-flow
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/process_flow_synthesis.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/observations.json"             --json "$RUNNER_TEMP/flows.json"             --markdown "$RUNNER_TEMP/FLOWS.md"             --require-flow
 
-      - name: Normalize cross-repository blast radius
+      - name: Normalize real local evidence into cross-repository blast radius
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import json, os
+          import json, os, re
           from pathlib import Path
-          tmp = Path(os.environ["RUNNER_TEMP"])
-          event_id = (tmp / "event-contract-id.txt").read_text().strip()
+          p = Path(os.environ["RUNNER_TEMP"])
+          raw = (p / "codegraph-pr-context.txt").read_text()
+          contracts = json.loads((p / "contracts.json").read_text())
+          http_id = next(c["contract_id"] for c in contracts["contracts"] if c["kind"] == "http-api")
+          match = re.search(r'"risk_level"s*:s*"(low|medium|high)"', raw)
+          if not match:
+              match = re.search(r'Risk:.*?(low|medium|high)', raw, re.I)
+          assert match, raw
           changes = {
-            "schema_version":1,
-            "workspace_id":"c002-impact-fixture",
-            "changes":[{
-              "change_id":"change-api-event-publisher",
-              "repository_id":"api",
-              "change_type":"modify",
-              "surface_kind":"symbol",
-              "identifier":"publish_order_created",
-              "contract_ids":[event_id],
-              "state":"observed",
-              "evidence":["git:diff-publish-order-created"],
-              "local_impact":{
-                "provider":"codegraph-0.20.1",
-                "symbols":["publish_order_created"],
-                "tests":["test_checkout_publishes"],
-                "evidence":["codegraph:real-impact-run"],
-                "summary":{"filesAffected":2,"breakingChanges":0,"warnings":1}
-              }
+            "schema_version": 1,
+            "workspace_id": "c002-diff-impact-fixture",
+            "changes": [{
+              "change_id": "api-handler-change",
+              "repository_id": "api",
+              "change_type": "modify",
+              "surface_kind": "symbol",
+              "identifier": "handle_checkout",
+              "path": "api/service.py",
+              "symbol": "handle_checkout",
+              "state": "observed",
+              "evidence": ["git-diff:main...HEAD", "codegraph:pr_context"],
+              "local_impact": {
+                "risk_level": match.group(1).lower(),
+                "symbols": ["handle_checkout"],
+                "files": ["api/service.py"],
+                "tests": ["tests/test_service.py"],
+                "direct_callers": ["test_checkout_publishes"],
+                "steps": ["api.handle"],
+                "evidence": ["codegraph:pr_context"]
+              },
+              "contract_touches": [{
+                "contract_id": http_id,
+                "side": "provider",
+                "state": "observed",
+                "evidence": ["api:http-contract"]
+              }]
             }]
           }
-          (tmp / "changes.json").write_text(json.dumps(changes))
+          (p / "changes.json").write_text(json.dumps(changes))
           PY
 
           python3 agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalizer.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/flows.json"             "$RUNNER_TEMP/changes.json"             --json "$RUNNER_TEMP/impact.json"             --markdown "$RUNNER_TEMP/IMPACT.md"             --require-complete
 
-          grep -q '"impact_level": "high"' "$RUNNER_TEMP/impact.json"
-          grep -q '"repo_worker_01"' "$RUNNER_TEMP/impact.json"
-          grep -q '"flow_001"' "$RUNNER_TEMP/impact.json"
-          grep -q 'test_checkout_publishes' "$RUNNER_TEMP/impact.json"
-          ! grep -q "secret-owner" "$RUNNER_TEMP/impact.json"
-          ! grep -q "secret-owner" "$RUNNER_TEMP/IMPACT.md"
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          p = Path(os.environ["RUNNER_TEMP"])
+          raw = (p / "codegraph-pr-context.txt").read_text()
+          out = json.loads((p / "impact.json").read_text())
+          match = re.search(r'"risk_level"s*:s*"(low|medium|high)"', raw)
+          if not match:
+              match = re.search(r'Risk:.*?(low|medium|high)', raw, re.I)
+          assert out["status"] == "verified"
+          assert out["blast_radius"]["repositories"] == ["api", "repo_worker_01", "web"]
+          assert out["summary"]["impacted_contracts"] == 1
+          assert out["summary"]["impacted_flows"] == 1
+          assert out["changes"][0]["local_impact"]["risk_level"] == match.group(1).lower()
+          assert "tests/test_service.py" in out["blast_radius"]["related_tests"]
+          assert "risk_level" not in out
+          assert "secret-owner" not in json.dumps(out)
+          PY
 
-      - name: Verify contract version mismatch becomes critical
+      - name: Verify incomplete evidence is downgraded
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          tmp = Path(os.environ["RUNNER_TEMP"])
-          event_id = (tmp / "event-contract-id.txt").read_text().strip()
-          changes = {
-            "schema_version":1,
-            "workspace_id":"c002-impact-fixture",
-            "changes":[{
-              "change_id":"change-event-v2",
-              "repository_id":"api",
-              "change_type":"version-change",
-              "surface_kind":"event",
-              "identifier":"event.order.created",
-              "contract_id":event_id,
-              "new_version":"2.0.0",
-              "state":"observed",
-              "evidence":["schema:diff"],
-              "local_impact":{"evidence":["schema:validation"]}
+          cat > "$RUNNER_TEMP/partial.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "workspace_id": "c002-diff-impact-fixture",
+            "changes": [{
+              "change_id": "file-only",
+              "repository_id": "api",
+              "change_type": "modify",
+              "surface_kind": "file",
+              "identifier": "api/service.py",
+              "state": "observed",
+              "evidence": ["git-diff:api/service.py"]
             }]
           }
-          (tmp / "changes-v2.json").write_text(json.dumps(changes))
-          PY
+          JSON
 
-          python3 agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalizer.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/flows.json"             "$RUNNER_TEMP/changes-v2.json"             --json "$RUNNER_TEMP/impact-v2.json"             --markdown "$RUNNER_TEMP/IMPACT_V2.md"             --require-complete
-
-          grep -q '"impact_level": "critical"' "$RUNNER_TEMP/impact-v2.json"
-          grep -q '"version_mismatches": 1' "$RUNNER_TEMP/impact-v2.json"
+          set +e
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalizer.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/flows.json"             "$RUNNER_TEMP/partial.json"             --json "$RUNNER_TEMP/partial-impact.json"             --markdown "$RUNNER_TEMP/PARTIAL.md"             --require-complete
+          code=$?
+          set -e
+          test "$code" -eq 7
+          grep -q '"status": "partial-evidence"' "$RUNNER_TEMP/partial-impact.json"
 
       - name: Publish diff impact evidence
         shell: bash
         run: |
           {
-            echo "## C002 Diff → Impact Lab"
+            echo "## C002 Diff → Impact Revalidation"
             echo
-            echo "- Real CodeGraph semantic impact was collected for the changed API symbol."
-            echo "- Local impact was normalized into cross-repository blast radius."
-            echo "- The downstream private worker and end-to-end flow were selected for review."
-            echo "- Local affected test scope was retained."
-            echo "- A deliberate event version mismatch became a critical compatibility finding."
-            echo "- Private repository source identity did not appear in persisted output."
+            echo "- CodeGraph pr_context analyzed a real git diff."
+            echo "- CodeGraph local risk and related-test evidence were preserved, not recomputed."
+            echo "- Sazan expanded evidence through an explicit provider-side HTTP contract touch and verified process flow."
+            echo "- Web, API, and the downstream private worker were selected for review."
+            echo "- Incomplete file-only evidence was downgraded to partial-evidence."
+            echo "- No synthetic global risk score was produced."
+            echo "- Private repository source identity was absent from persisted output."
           } >> "$GITHUB_STEP_SUMMARY"
