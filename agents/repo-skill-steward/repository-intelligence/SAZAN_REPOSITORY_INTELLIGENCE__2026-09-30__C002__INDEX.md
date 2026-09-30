@@ -15,7 +15,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - common evidence-envelope schema — VERIFIED / PROMOTED;
 - multi-repository registry — VERIFIED / PROMOTED;
 - cross-repository contracts — VERIFIED / PROMOTED;
-- process-flow synthesis — IMPLEMENTED, pending lab;
+- process-flow synthesis — VERIFIED / PROMOTED;
 - diff-impact normalization;
 - token and output budgets;
 - provider fallback/health controls;
@@ -87,4 +87,4 @@ Model:
 - cycles and unreachable steps are reported;
 - max-hops and max-paths prevent runaway traversal.
 
-Status: pending C002 process-flow lab.
+Status: VERIFIED — process-flow lab run 36753107333; 11 contract tests plus end-to-end multi-repository flow validation passed.
