@@ -125,4 +125,4 @@ Model:
 - pack generation is deterministic and contains no timestamp or machine-specific absolute path;
 - a canonical pack fingerprint detects evidence drift.
 
-Status: CANDIDATE — awaiting reproducibility lab evidence.
+Status: VERIFIED / PROMOTED — deterministic reproducibility run 36770061102 passed; byte-identical pack generation, manifest validation, core reproduction commands, and all repository regressions passed.
