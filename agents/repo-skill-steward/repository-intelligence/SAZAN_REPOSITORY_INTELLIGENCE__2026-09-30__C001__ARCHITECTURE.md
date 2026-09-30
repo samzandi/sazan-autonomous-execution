@@ -68,7 +68,19 @@ Design:
 GitDiagram remains optional/reference-only and is not a core dependency. Its hosted service and full self-hosted stack remain optional/reference-only because baseline operation requires additional cloud/storage/AI infrastructure. Use the hosted service only when richer interaction materially helps and repository privacy permits it.
 
 ### L4 — Wiki and Repository Q&A
-Primary candidate: DeepWiki Open.
+Primary baseline: Sazan lightweight evidence-first Wiki/Q&A path
+Status: verified and promoted
+Evidence: Wiki/Q&A lab run 36744130393
+
+Baseline components:
+- CodeGraph architecture document generation;
+- CodeGraph curated cross-codebase context;
+- L1 context packers for supplemental text evidence;
+- Sazan Mermaid renderer;
+- active Sazan reasoning model for answer synthesis.
+
+DeepWiki Open remains an optional self-hostable full Wiki/RAG product for persistent vector indexes, standalone wiki UI, codemap/guided tours, and long-lived conversational retrieval. It is not required by the core path.
+
 ExplainGitHub remains an external reference until its implementation and license are auditable.
 
 ### L5 — Semantic Editing

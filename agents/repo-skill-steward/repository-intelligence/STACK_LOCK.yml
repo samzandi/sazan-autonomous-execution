@@ -1,4 +1,4 @@
-version: 7
+version: 9
 verified_at: 2026-09-30
 context: C001
 
@@ -122,11 +122,40 @@ components:
       - hosted-private-repository-use-requires-explicit-authorization
       - must-not-be-required-for-core-repository-intelligence
 
+  - name: sazan-lightweight-wiki-qa
+    role: primary-wiki-and-repository-qa
+    implementation: codegraph-plus-context-packaging-plus-sazan-reasoning
+    status: promoted-primary
+    lab_run_id: 36744130393
+    properties:
+      - graph-first-evidence
+      - natural-language-curated-context
+      - architecture-doc-generation
+      - no-vector-db-required-for-baseline
+      - no-embedding-api-required-for-baseline
+      - no-external-llm-api-required-by-retrieval-layer
+      - private-repo-local-evidence-path
+
   - name: deepwiki-open
-    role: wiki-and-repository-qa
+    role: optional-full-wiki-rag-product
     repository: AsyncFuncAI/deepwiki-open
     license: MIT
-    status: evaluate-for-promotion
+    status: optional-full-rag-product-not-core
+    capabilities:
+      - adalflow-rag
+      - faiss
+      - persistent-local-indexes
+      - streaming-chat
+      - wiki-generation
+      - codemap
+      - markdown-json-export
+      - multi-provider-llm
+      - ollama-local-mode
+    constraints:
+      - separate-fastapi-backend
+      - embedding-model-required-for-rag
+      - generation-model-required-for-wiki-and-chat
+      - additional-index-cache-lifecycle
 
   - name: serena
     role: semantic-editing-adapter
@@ -182,6 +211,13 @@ architecture_presentation_routing:
   optional_external: gitdiagram
   private_repo_external_default: false
   provider_independent_contract: true
+
+wiki_qa_routing:
+  primary: sazan-lightweight-wiki-qa
+  optional_full_rag_product: deepwiki-open
+  graph_first: true
+  persistent_vector_index_required_by_default: false
+  private_repo_external_default: false
 
 policy:
   unknown_license: reference-only
