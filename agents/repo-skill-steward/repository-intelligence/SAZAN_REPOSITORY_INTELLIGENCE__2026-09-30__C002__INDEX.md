@@ -11,8 +11,8 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 
 ## Initial scope
 
-- orchestration entry point — IMPLEMENTED, pending lab;
-- common evidence-envelope schema — IMPLEMENTED, pending lab;
+- orchestration entry point — VERIFIED / PROMOTED;
+- common evidence-envelope schema — VERIFIED / PROMOTED;
 - multi-repository registry;
 - cross-repository contracts;
 - process-flow synthesis;
@@ -38,7 +38,7 @@ The orchestrator:
 - delegates the final decision to the verified L7 promotion engine;
 - can only reach `ready-for-parent-review`, never auto-promotion.
 
-Status: pending C002 orchestration lab.
+Status: VERIFIED — orchestration lab run 36750536038; 9 contract tests passed.
 
 ## Constraints carried from C001
 
