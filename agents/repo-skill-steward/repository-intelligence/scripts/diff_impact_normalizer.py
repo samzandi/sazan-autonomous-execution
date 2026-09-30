@@ -185,6 +185,7 @@ def normalize(
         raise ValueError("changes.changes must not be empty")
 
     normalized_changes: list[dict[str, Any]] = []
+    seen_change_ids: set[str] = set()
     all_impacted_repos: set[str] = set()
     all_impacted_contracts: set[str] = set()
     all_impacted_flows: set[str] = set()
@@ -198,6 +199,9 @@ def normalize(
             raise ValueError(f"changes[{index}] must be an object")
         where = f"changes[{index}]"
         change_id = _text(raw.get("change_id"), f"{where}.change_id")
+        if change_id in seen_change_ids:
+            raise ValueError(f"duplicate change_id: {change_id}")
+        seen_change_ids.add(change_id)
         repository_id = _text(raw.get("repository_id"), f"{where}.repository_id")
         if repository_id not in repo_ids:
             raise ValueError(f"{change_id}: unknown repository_id {repository_id}")
