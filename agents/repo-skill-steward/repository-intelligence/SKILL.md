@@ -57,6 +57,18 @@ When reviewing a change set:
 - never infer file-level blast radius from filenames alone;
 - redact private absolute paths before persistence.
 
+## Token and output budgets
+
+For production Repository Intelligence runs:
+- enable strict `budget_policy`;
+- report the stage-specific required metrics;
+- identify the context-token counting method whenever tokens are reported;
+- accumulate context-token and output-byte usage across stages;
+- treat graph nodes as a run ceiling rather than double-counting repeated graph views;
+- block stage overruns and missing strict measurements;
+- block provider truncation unless an explicit constrained override exists;
+- never mutate or silently truncate artifacts to make a result appear within budget.
+
 ## Required stages
 
 1. Intake

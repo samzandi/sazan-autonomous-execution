@@ -77,6 +77,14 @@ def new_envelope(manifest: dict[str, Any]) -> dict[str, Any]:
     if any(v <= 0 for v in normalized_budgets.values()):
         raise ValueError("all budgets must be positive")
 
+    raw_budget_policy = manifest.get("budget_policy", {})
+    if not isinstance(raw_budget_policy, dict):
+        raise ValueError("budget_policy must be an object")
+    budget_policy = {
+        "strict": bool(raw_budget_policy.get("strict", False)),
+        "allow_truncation": bool(raw_budget_policy.get("allow_truncation", False)),
+    }
+
     stages = []
     for stage_id in STAGE_ORDER:
         optional = stage_id == "L5-semantic-editing" and mode == "analysis"
@@ -88,6 +96,7 @@ def new_envelope(manifest: dict[str, Any]) -> dict[str, Any]:
             "artifacts": [],
             "metrics": {},
             "constraints": [],
+            "budget": None,
             "error": None,
         })
 
@@ -110,6 +119,14 @@ def new_envelope(manifest: dict[str, Any]) -> dict[str, Any]:
             "persist_private_identity": False,
         },
         "budgets": normalized_budgets,
+        "budget_policy": budget_policy,
+        "budget_usage": {
+            "context_tokens": 0,
+            "graph_nodes": 0,
+            "output_bytes": 0,
+            "stages_measured": 0,
+            "last_stage_elapsed_seconds": None,
+        },
         "stages": stages,
         "cross_cutting": {
             "license": {"status": "pending", "evidence": []},
@@ -164,6 +181,7 @@ def apply_stage_result(envelope: dict[str, Any], result: dict[str, Any]) -> dict
         "artifacts": artifacts,
         "metrics": metrics,
         "constraints": constraints,
+        "budget": result.get("budget"),
         "error": result.get("error"),
     })
 
@@ -195,6 +213,18 @@ def validate_envelope(envelope: dict[str, Any]) -> None:
         raise ValueError("unsupported evidence envelope schema version")
     if envelope.get("status") not in RUN_STATES:
         raise ValueError("invalid run status")
+    usage = envelope.get("budget_usage")
+    if not isinstance(usage, dict):
+        raise ValueError("budget_usage must be an object")
+    required_usage = {
+        "context_tokens",
+        "graph_nodes",
+        "output_bytes",
+        "stages_measured",
+        "last_stage_elapsed_seconds",
+    }
+    if set(usage) != required_usage:
+        raise ValueError("budget_usage does not match C002 contract")
     stages = envelope.get("stages")
     if not isinstance(stages, list):
         raise ValueError("stages must be a list")
@@ -203,6 +233,16 @@ def validate_envelope(envelope: dict[str, Any]) -> None:
     if envelope.get("target", {}).get("visibility") in {"private", "internal"}:
         if envelope.get("target", {}).get("identity_persisted"):
             raise ValueError("private/internal identity must not be persisted")
+    budget_policy = envelope.get("budget_policy")
+    if not isinstance(budget_policy, dict):
+        raise ValueError("budget_policy must be an object")
+    if not isinstance(budget_policy.get("strict"), bool):
+        raise ValueError("budget_policy.strict must be a boolean")
+    if not isinstance(budget_policy.get("allow_truncation"), bool):
+        raise ValueError("budget_policy.allow_truncation must be a boolean")
+    usage = envelope.get("budget_usage")
+    if not isinstance(usage, dict):
+        raise ValueError("budget_usage must be an object")
 
 
 def canonical_json(envelope: dict[str, Any]) -> str:

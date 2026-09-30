@@ -1,4 +1,4 @@
-version: 20
+version: 22
 verified_at: 2026-09-30
 context: C002
 
@@ -20,6 +20,26 @@ components:
       - delegates-l7-to-verified-promotion-gate
       - no-auto-promotion
       - parent-review-required
+
+  - name: sazan-budget-guard
+    role: token-graph-output-and-stage-time-budget-enforcement
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/budget_guard.py
+    license: repository-license
+    status: promoted-primary
+    lab_run_id: 36757285076
+    properties:
+      - strict-fail-closed-mode
+      - stage-specific-required-measurements
+      - cumulative-context-token-budget
+      - cumulative-output-byte-budget
+      - max-graph-node-ceiling
+      - per-stage-elapsed-time-check
+      - explicit-token-count-method
+      - truncation-blocked-by-default
+      - exact-output-byte-helper
+      - no-artifact-mutation
+      - legacy-nonstrict-compatibility
+      - deterministic-receipts
 
   - name: sazan-multi-repo-registry
     role: workspace-repository-registry-and-cross-repo-contract-graph
@@ -500,3 +520,19 @@ diff_impact_routing:
     - critical
   file_change_without_semantic_evidence: partial-evidence
   private_absolute_paths_persisted: false
+
+budget_routing:
+  primary: sazan-budget-guard
+  context: C002
+  production_policy:
+    strict: true
+    allow_truncation: false
+  limits:
+    - max_context_tokens
+    - max_graph_nodes
+    - max_output_bytes
+    - stage_timeout_seconds
+  missing_required_measurement: blocked
+  over_budget: blocked
+  silent_truncation: forbidden
+  actual_process_cancellation: provider-runner-responsibility

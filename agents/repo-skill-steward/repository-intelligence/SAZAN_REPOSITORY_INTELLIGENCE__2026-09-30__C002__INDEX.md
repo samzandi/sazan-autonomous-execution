@@ -17,7 +17,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - cross-repository contracts — VERIFIED / PROMOTED;
 - process-flow synthesis — VERIFIED / PROMOTED;
 - diff-impact normalization — VERIFIED / PROMOTED;
-- token and output budgets;
+- token and output budgets — VERIFIED / PROMOTED;
 - provider fallback/health controls;
 - incremental state/cache strategy;
 - realistic end-to-end integration lab.
@@ -109,3 +109,25 @@ Model:
 - missing semantic mapping remains partial-evidence rather than guessed impact.
 
 Status: VERIFIED — diff-impact lab run 36755232124; 11 contract tests plus real CodeGraph cross-repository propagation validation passed.
+
+
+## Milestone 5 — Token, graph, output, and stage-time budgets
+
+Implementation:
+- `scripts/budget_guard.py`;
+- `C002_BUDGET_POLICY.md`;
+- budget contract tests;
+- strict orchestration integration lab.
+
+Model:
+- stage-specific required usage is machine-checked in strict mode;
+- context tokens and output bytes accumulate across stages;
+- graph nodes use a maximum ceiling rather than repeated summation;
+- stage elapsed time is checked independently;
+- context-token reports must identify their counting method;
+- provider truncation blocks by default;
+- a budget rejection never mutates the source artifact;
+- every stage persists a budget receipt and the envelope persists cumulative usage;
+- legacy manifests remain non-strict until explicitly upgraded.
+
+Status: VERIFIED — budget lab run 36757285076; 18 contract tests plus strict orchestration validation passed.

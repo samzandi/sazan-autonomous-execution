@@ -22,6 +22,7 @@ def _load_module(name: str, path: Path):
 
 
 ENV = _load_module("evidence_envelope", HERE / "evidence_envelope.py")
+BUDGET = _load_module("budget_guard", HERE / "budget_guard.py")
 PROMOTION = _load_module("evaluate_promotion", HERE / "evaluate_promotion.py")
 
 
@@ -34,6 +35,17 @@ PROVIDERS = {
     "L5-semantic-editing": "serena-1.7.0-isolated",
     "L6-reverse-engineering": "sazan-rebuild-spec",
     "L7-promotion": "sazan-promotion-gate",
+}
+
+STRICT_BUDGET_METRICS = {
+    "L0-intake": ["output_bytes", "elapsed_seconds"],
+    "L1-context-packaging": ["context_tokens", "output_bytes", "elapsed_seconds"],
+    "L2-semantic-graph": ["graph_nodes", "output_bytes", "elapsed_seconds"],
+    "L3-architecture-presentation": ["output_bytes", "elapsed_seconds"],
+    "L4-wiki-qa": ["context_tokens", "output_bytes", "elapsed_seconds"],
+    "L5-semantic-editing": ["output_bytes", "elapsed_seconds"],
+    "L6-reverse-engineering": ["context_tokens", "output_bytes", "elapsed_seconds"],
+    "L7-promotion": [],
 }
 
 
@@ -59,6 +71,7 @@ def plan(envelope: dict[str, Any]) -> dict[str, Any]:
         "run_id": envelope["run_id"],
         "target": envelope["target"],
         "budgets": envelope["budgets"],
+        "budget_policy": envelope["budget_policy"],
         "stages": stages,
         "rules": {
             "stop_on_failed": True,
@@ -66,8 +79,65 @@ def plan(envelope: dict[str, Any]) -> dict[str, Any]:
             "auto_promote": False,
             "parent_approval_required": True,
             "private_identity_persistence": False,
+            "budget_enforcement": True,
+            "budget_violation_blocks_stage": True,
         },
     }
+
+
+
+def _apply_with_budget(
+    envelope: dict[str, Any],
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    stage_id = str(result.get("stage", "")).strip()
+    original_status = str(result.get("status", "")).strip()
+
+    # Preserve an upstream provider/policy failure as the primary cause. A failed
+    # provider is not required to manufacture usage telemetry after failure.
+    if original_status in {"failed", "blocked"}:
+        guarded = dict(result)
+        guarded["budget"] = {
+            "schema_version": 1,
+            "stage": stage_id,
+            "decision": "not-evaluated",
+            "reason": f"stage already {original_status} before budget evaluation",
+            "usage": dict(envelope.get("budget_usage", BUDGET.initial_usage())),
+            "violations": [],
+            "constraints": [],
+        }
+        return ENV.apply_stage_result(envelope, guarded)
+
+    policy = envelope["budget_policy"]
+    decision = BUDGET.evaluate(
+        envelope["budgets"],
+        envelope.get("budget_usage"),
+        stage_id,
+        result.get("metrics", {}),
+        required_metrics=STRICT_BUDGET_METRICS.get(stage_id, []),
+        strict=policy["strict"],
+        allow_truncation=policy["allow_truncation"],
+    )
+
+    guarded = dict(result)
+    guarded["budget"] = decision
+    guarded["constraints"] = sorted(set(
+        list(result.get("constraints", [])) + decision["constraints"]
+    ))
+
+    if decision["decision"] == "block":
+        guarded["status"] = "blocked"
+        guarded["error"] = "; ".join(decision["violations"])
+        guarded["constraints"] = sorted(set(
+            guarded["constraints"] + decision["violations"]
+        ))
+    elif decision["decision"] == "allow-with-constraints":
+        if guarded.get("status") == "passed":
+            guarded["status"] = "passed-with-constraints"
+
+    updated = ENV.apply_stage_result(envelope, guarded)
+    updated["budget_usage"] = decision["usage"]
+    return updated
 
 
 def promotion_package(envelope: dict[str, Any]) -> dict[str, Any]:
@@ -129,7 +199,7 @@ def run(manifest: Path, stage_dir: Path) -> tuple[dict[str, Any], dict[str, Any]
         result = _load(result_path)
         if result.get("stage") != stage["id"]:
             raise ValueError(f"{result_path}: stage ID mismatch")
-        envelope = ENV.apply_stage_result(envelope, result)
+        envelope = _apply_with_budget(envelope, result)
         if envelope["status"] in {"failed", "blocked"}:
             break
 
@@ -160,7 +230,7 @@ def run(manifest: Path, stage_dir: Path) -> tuple[dict[str, Any], dict[str, Any]
             "constraints": decision["constraints"],
             "error": None if decision["decision"] in PROMOTION.FINAL_ELIGIBLE else "; ".join(decision["reasons"]),
         }
-        envelope = ENV.apply_stage_result(envelope, l7_result)
+        envelope = _apply_with_budget(envelope, l7_result)
         envelope["promotion"] = decision
 
     ENV.validate_envelope(envelope)

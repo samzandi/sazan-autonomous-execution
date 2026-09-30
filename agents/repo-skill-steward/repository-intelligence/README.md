@@ -24,6 +24,10 @@ C002 adds `scripts/process_flow_synthesis.py` to reconstruct bounded, evidence-b
 
 C002 adds `scripts/diff_impact_normalize.py` to combine local semantic change impact with cross-repository contracts and execution flows. The output is a normalized blast radius covering affected files, tests, steps, contracts, flows, and repositories, while preserving private-path redaction.
 
+## Budget enforcement
+
+C002 uses `scripts/budget_guard.py` to turn token, graph, output-byte, and stage-time budgets into machine-enforced receipts. Production strict mode fails closed on missing required measurements, overages, or provider truncation; the guard does not silently trim artifacts.
+
 ## Operating pipeline
 
 1. Intake and provenance
