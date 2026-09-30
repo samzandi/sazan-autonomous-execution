@@ -87,3 +87,14 @@ Promotion evidence must preserve:
 - rollback strategy.
 
 Private repository names or private code must not be committed into this public repository.
+
+
+## C003 rollback evidence hardening
+
+C003 strengthens the rollback gate:
+
+- `checks.rollback.status = verified` is insufficient by itself;
+- verified rollback now also requires non-empty evidence;
+- the evidence should identify the verified rollback point and the executed or reproducible rollback mechanism;
+- executable changes should prefer an isolated branch/worktree transaction with post-rollback revision/tree verification;
+- a missing rollback evidence reference produces `pending-evidence`, never eligibility.

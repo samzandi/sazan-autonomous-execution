@@ -77,3 +77,28 @@ Model:
 Engine status: VERIFIED / PROMOTED — workflow run 36768157558; all repository regressions passed; PR #31 merged as commit 9f25127b019ae42c58d5beda56f7860dcb24f1f8.
 
 Live parity verdict: BLOCKED until Milestone 1 and Milestone 2 both produce verified proofs on the same revision and deterministic baseline.
+
+
+## Milestone 4 — Failure and rollback evidence
+
+Implementation:
+- `scripts/rollback_evidence.py`;
+- `scripts/run_c003_failure_rollback_lab.py`;
+- `tests/test_repository_intelligence_c003_rollback.py`;
+- `C003_FAILURE_ROLLBACK_EVIDENCE.md`;
+- `.github/workflows/repository-intelligence-c003-failure-rollback-lab.yml`;
+- promotion gate hardening in `scripts/evaluate_promotion.py`.
+
+Model:
+- failure must be observed rather than inferred;
+- execution must occur in an isolated git worktree;
+- rollback revision and tree hash must be recorded before mutation;
+- the mutation revision must differ from the rollback point;
+- rollback must restore both revision and tree exactly;
+- candidate worktree must be clean after rollback;
+- parent workspace must remain unchanged;
+- functional validation must pass after rollback;
+- private/sensitive material and absolute execution paths must not be persisted;
+- promotion rollback status now requires evidence, not status alone.
+
+Status: VERIFIED / PROMOTED — real rollback lab run 36769117578 passed; promotion gate now requires rollback evidence; all repository regressions passed.

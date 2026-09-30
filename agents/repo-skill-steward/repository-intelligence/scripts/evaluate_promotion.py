@@ -127,8 +127,8 @@ def evaluate(package: dict[str, Any]) -> dict[str, Any]:
     if delta.get("status") not in {"new", "better", "replacement", "reference-value"} or not _has_evidence(delta):
         if delta.get("status") not in {"duplicate", "incompatible"}:
             pending.append("capability delta is not established")
-    if rollback.get("status") != "verified":
-        pending.append("rollback path is not verified")
+    if rollback.get("status") != "verified" or not _has_evidence(rollback):
+        pending.append("rollback path is not verified with evidence")
     if private_data.get("status") != "compliant":
         if private_data.get("status") != "violation":
             pending.append("private-data handling is not verified")
