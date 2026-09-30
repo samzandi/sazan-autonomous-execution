@@ -63,7 +63,8 @@ components:
     role: evidence-backed-incremental-stage-cache
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/incremental_cache.py
     license: repository-license
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36763808082
     properties:
       - semantic-stage-input-fingerprints
       - revision-is-provenance-not-default-key
