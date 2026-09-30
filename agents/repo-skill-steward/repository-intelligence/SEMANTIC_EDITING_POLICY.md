@@ -2,7 +2,24 @@
 
 Context: C001
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
+
+Verified lab run: 36745934710
+
+Verified:
+- CodeGraph pre-edit impact evidence found the dependent path;
+- Serena 1.7.0 was installed from immutable commit 949a27ef1e5fda1a6e7b561e777bcece345c6ffd;
+- uv 0.12.21 was digest-verified for the LSP runtime prerequisite;
+- Serena health-check passed with Pyright;
+- find_referencing_symbols found the cross-file usage;
+- normalize_amount was renamed to normalize_money across files;
+- an unreferenced symbol was removed through safe-delete;
+- Python compilation and functional execution passed after mutation;
+- CodeGraph post-edit verification found the renamed symbol and dependent path.
+
+Operational finding:
+- Serena 1.7.0 headless in-process teardown can terminate the calling process while stopping managed language-server processes.
+- Production Sazan integration must therefore run Serena behind an isolated MCP/subprocess boundary rather than embedding its application runtime in the primary Sazan process.
 
 ## Goal
 
@@ -68,7 +85,7 @@ Every semantic edit should use this sequence when practical:
 
 ## Baseline provider routing
 
-- primary candidate: Serena 1.7.0, pinned by immutable commit, pending lab;
+- primary provider: Serena 1.7.0, pinned by immutable commit and operated behind an MCP/subprocess boundary;
 - structural safety gate: CodeGraph 0.20.1;
 - future permissive implementation candidate: SolidLSP + Sazan-owned editing adapter;
 - Serena v2: external/reference-only unless a separate licensing decision is made.
