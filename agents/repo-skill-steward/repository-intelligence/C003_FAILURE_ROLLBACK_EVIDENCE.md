@@ -2,7 +2,7 @@
 
 Context: C003
 Date: 2026-09-30
-Status: CANDIDATE
+Status: VERIFIED / PROMOTED
 Milestone: 4
 
 ## Goal
@@ -36,4 +36,17 @@ No production repository is mutated by the lab.
 
 The C003 change also closes a policy gap: `checks.rollback.status = verified` is no longer sufficient by itself. A verified rollback gate must also include non-empty evidence.
 
-Status remains CANDIDATE until the pull-request lab and repository regressions pass.
+Status: VERIFIED / PROMOTED.
+
+## Verification evidence
+
+- initial lab run 36768911269 correctly blocked because Python functional checks created an untracked __pycache__ directory, proving the clean-worktree gate was effective;
+- functional checks were hardened with Python -B to prevent bytecode side effects;
+- verified lab run 36769117578 passed all rollback contract tests;
+- promotion-gate regression tests passed;
+- the real failure and rollback transaction passed;
+- final revision and tree hash exactly matched the verified rollback point;
+- candidate worktree was clean;
+- parent workspace remained unchanged;
+- functional validation passed after rollback;
+- all repository regression workflows passed.
