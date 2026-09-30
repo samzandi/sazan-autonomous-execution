@@ -25,7 +25,8 @@ components:
     role: workspace-repository-registry-and-cross-repo-contract-graph
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/multi_repo_registry.py
     license: repository-license
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36751884638
     properties:
       - stable-repository-identity
       - private-source-redaction
