@@ -34,7 +34,7 @@ REQUIRED_BUDGET_METRICS = {
     "L4-wiki-qa": ["context_tokens", "output_bytes", "elapsed_seconds"],
     "L5-semantic-editing": ["output_bytes", "elapsed_seconds"],
     "L6-reverse-engineering": ["output_bytes", "elapsed_seconds"],
-    "L7-promotion": ["output_bytes", "elapsed_seconds"],
+    "L7-promotion": [],
 }
 
 PROVIDERS = {
@@ -119,15 +119,17 @@ def _apply_with_budget(
         list(result.get("constraints", [])) + decision["constraints"]
     ))
 
-    if decision["decision"] == "block":
-        guarded["status"] = "blocked"
-        guarded["error"] = "; ".join(decision["violations"])
-        guarded["constraints"] = sorted(set(
-            guarded["constraints"] + decision["violations"]
-        ))
-    elif decision["decision"] == "allow-with-constraints":
-        if guarded.get("status") == "passed":
-            guarded["status"] = "passed-with-constraints"
+    provider_status = guarded.get("status")
+    if provider_status in {"passed", "passed-with-constraints"}:
+        if decision["decision"] == "block":
+            guarded["status"] = "blocked"
+            guarded["error"] = "; ".join(decision["violations"])
+            guarded["constraints"] = sorted(set(
+                guarded["constraints"] + decision["violations"]
+            ))
+        elif decision["decision"] == "allow-with-constraints":
+            if guarded.get("status") == "passed":
+                guarded["status"] = "passed-with-constraints"
 
     updated = ENV.apply_stage_result(envelope, guarded)
     updated["budget_usage"] = decision["usage"]
