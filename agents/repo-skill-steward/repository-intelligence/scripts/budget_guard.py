@@ -71,18 +71,10 @@ def normalize_usage(usage: dict[str, Any] | None) -> dict[str, Any]:
             if key in usage:
                 current[key] = deepcopy(usage[key])
 
-    current["context_tokens"] = int(_number(
-        current["context_tokens"], "usage.context_tokens", integer=True
-    ))
-    current["graph_nodes"] = int(_number(
-        current["graph_nodes"], "usage.graph_nodes", integer=True
-    ))
-    current["output_bytes"] = int(_number(
-        current["output_bytes"], "usage.output_bytes", integer=True
-    ))
-    current["stages_measured"] = int(_number(
-        current["stages_measured"], "usage.stages_measured", integer=True
-    ))
+    current["context_tokens"] = int(_number(current["context_tokens"], "usage.context_tokens", integer=True))
+    current["graph_nodes"] = int(_number(current["graph_nodes"], "usage.graph_nodes", integer=True))
+    current["output_bytes"] = int(_number(current["output_bytes"], "usage.output_bytes", integer=True))
+    current["stages_measured"] = int(_number(current["stages_measured"], "usage.stages_measured", integer=True))
     if current["last_stage_elapsed_seconds"] is not None:
         current["last_stage_elapsed_seconds"] = float(_number(
             current["last_stage_elapsed_seconds"],
@@ -103,9 +95,7 @@ def normalize_metrics(metrics: dict[str, Any] | None) -> dict[str, Any]:
         if key in metrics:
             measured[key] = int(_number(metrics[key], f"metrics.{key}", integer=True))
     if "elapsed_seconds" in metrics:
-        measured["elapsed_seconds"] = float(_number(
-            metrics["elapsed_seconds"], "metrics.elapsed_seconds", integer=False
-        ))
+        measured["elapsed_seconds"] = float(_number(metrics["elapsed_seconds"], "metrics.elapsed_seconds", integer=False))
     if "truncated" in metrics:
         if not isinstance(metrics["truncated"], bool):
             raise ValueError("metrics.truncated must be a boolean")
@@ -115,8 +105,7 @@ def normalize_metrics(metrics: dict[str, Any] | None) -> dict[str, Any]:
         method = str(metrics.get("context_token_method", "")).strip()
         if method not in TOKEN_METHODS:
             raise ValueError(
-                "metrics.context_token_method must identify a supported counting method "
-                "when context_tokens is reported"
+                "metrics.context_token_method must identify a supported counting method when context_tokens is reported"
             )
         measured["context_token_method"] = method
 
@@ -135,9 +124,8 @@ def evaluate(
 ) -> dict[str, Any]:
     """Evaluate stage-local measurements against cumulative/run limits.
 
-    strict=True makes missing stage-required measurements incomplete and therefore
-    blocking. This is the production C002 mode. Legacy fixtures may use strict=False
-    while provider adapters are upgraded.
+    strict mode makes missing stage-required measurements incomplete and blocking.
+    Legacy fixtures may use strict=False while provider adapters are upgraded.
     """
     limits = validate_budgets(budgets)
     if not isinstance(stage_id, str) or not stage_id.strip():
@@ -152,21 +140,18 @@ def evaluate(
     measured = normalize_metrics(metrics)
 
     missing = sorted(set(required) - set(measured))
-    unmeasured = sorted(set(BUDGET_KEYS) - set(measured))
     violations: list[str] = []
     constraints: list[str] = []
 
     if strict and missing:
-        violations.append(
-            f"required budget measurements missing for {stage_id}: {', '.join(missing)}"
-        )
+        violations.append(f"required budget measurements missing for {stage_id}: {', '.join(missing)}")
 
     if measured.get("truncated") is True:
         if allow_truncation:
             constraints.append("provider output was explicitly truncated")
         else:
             violations.append(
-                f"provider output for {stage_id} was truncated; incomplete output is not allowed"
+                f"provider output for {stage_id} was truncated; silent/incomplete output is not allowed"
             )
 
     next_usage = deepcopy(current)
@@ -183,13 +168,9 @@ def evaluate(
 
     checks: dict[str, dict[str, Any]] = {}
     for metric, limit_key in BUDGET_KEYS.items():
-        if metric == "elapsed_seconds":
-            used = measured.get(metric)
-            status = "unmeasured" if used is None else "within-budget"
-        else:
-            used = next_usage[metric]
-            status = "within-budget"
+        used = measured.get(metric) if metric == "elapsed_seconds" else next_usage[metric]
         limit = limits[limit_key]
+        status = "unmeasured" if metric == "elapsed_seconds" and metric not in measured else "within-budget"
         if used is not None and used > limit:
             status = "over-budget"
             label = {
@@ -199,11 +180,7 @@ def evaluate(
                 "elapsed_seconds": "stage timeout",
             }[metric]
             violations.append(f"{label} budget exceeded for {stage_id}: {used:g} > {limit}")
-        checks[metric] = {
-            "used": used,
-            "limit": limit,
-            "status": status,
-        }
+        checks[metric] = {"used": used, "limit": limit, "status": status}
 
     if violations:
         decision = "block"
@@ -226,7 +203,6 @@ def evaluate(
         "required_metrics": sorted(set(required)),
         "measured": measured,
         "missing_required": missing,
-        "unmeasured": unmeasured,
         "checks": checks,
         "usage": next_usage,
         "remaining": remaining,
@@ -265,10 +241,7 @@ def main() -> int:
     usage = json.loads(args.usage.read_text(encoding="utf-8")) if args.usage else None
     metrics = json.loads(args.metrics.read_text(encoding="utf-8"))
     result = evaluate(
-        budgets,
-        usage,
-        args.stage,
-        metrics,
+        budgets, usage, args.stage, metrics,
         required_metrics=args.required,
         strict=args.strict,
         allow_truncation=args.allow_truncation,
