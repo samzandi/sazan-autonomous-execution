@@ -1,0 +1,120 @@
+name: Repository Intelligence Architecture Presentation Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-architecture-presentation-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+      - "tests/test_repository_intelligence_mermaid.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mermaid-renderer:
+    runs-on: ubuntu-latest
+    env:
+      CODEGRAPH_TELEMETRY: "off"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Run renderer unit tests
+        run: python3 -m unittest tests/test_repository_intelligence_mermaid.py
+
+      - name: Create semantic graph fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/architecture-fixture"
+          mkdir -p "$fixture/core" "$fixture/service" "$fixture/api"
+          touch "$fixture/core/__init__.py" "$fixture/service/__init__.py" "$fixture/api/__init__.py"
+
+          cat > "$fixture/core/money.py" <<'PY'
+          def normalize_amount(value):
+              return round(float(value), 2)
+          PY
+
+          cat > "$fixture/service/orders.py" <<'PY'
+          from core.money import normalize_amount
+
+          def calculate_total(items):
+              subtotal = sum(items)
+              return normalize_amount(subtotal)
+          PY
+
+          cat > "$fixture/api/checkout.py" <<'PY'
+          from service.orders import calculate_total
+
+          def handle_checkout(items):
+              return calculate_total(items)
+          PY
+
+          git init -q "$fixture"
+          git -C "$fixture" config user.email "ci@example.invalid"
+          git -C "$fixture" config user.name "Sazan CI"
+          git -C "$fixture" add .
+          git -C "$fixture" commit -qm "fixture"
+          echo "FIXTURE=$fixture" >> "$GITHUB_ENV"
+
+      - name: Download and verify CodeGraph 0.20.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/codegraph-server"
+          curl -fsSL --retry 3 -o "$bin" \
+            https://github.com/codegraph-ai/CodeGraph/releases/download/v0.20.1/codegraph-server-linux-x64
+          echo "32b26422fa5ffe0a130955b7f7df771f722b2d427d67f53f104d9907bdfb24a6  $bin" | sha256sum -c -
+          chmod +x "$bin"
+          echo "CODEGRAPH_BIN=$bin" >> "$GITHUB_ENV"
+
+      - name: Produce real CodeGraph dependency JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          uri="$(python3 -c 'from pathlib import Path; import os; print(Path(os.environ["FIXTURE"] + "/api/checkout.py").resolve().as_uri())')"
+          args="$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"depth":3,"direction":"imports"}))' "$uri")"
+          cd "$FIXTURE"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_get_dependency_graph \
+            --tool-args "$args" \
+            > "$RUNNER_TEMP/codegraph-deps.json"
+          test -s "$RUNNER_TEMP/codegraph-deps.json"
+
+      - name: Render deterministic Mermaid
+        shell: bash
+        run: |
+          set -euo pipefail
+          renderer="$GITHUB_WORKSPACE/agents/repo-skill-steward/repository-intelligence/scripts/render_architecture_mermaid.py"
+          python3 "$renderer" "$RUNNER_TEMP/codegraph-deps.json" \
+            --title "Sazan Architecture Fixture" \
+            --output "$RUNNER_TEMP/architecture-a.mmd"
+          python3 "$renderer" "$RUNNER_TEMP/codegraph-deps.json" \
+            --title "Sazan Architecture Fixture" \
+            --output "$RUNNER_TEMP/architecture-b.mmd"
+          diff -u "$RUNNER_TEMP/architecture-a.mmd" "$RUNNER_TEMP/architecture-b.mmd"
+          grep -q "^flowchart LR" "$RUNNER_TEMP/architecture-a.mmd"
+          grep -Eq "checkout|orders|money|core|service" "$RUNNER_TEMP/architecture-a.mmd"
+
+      - name: Verify bounded safe output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(wc -c < "$RUNNER_TEMP/architecture-a.mmd")" -lt 20000
+          ! grep -q "<script" "$RUNNER_TEMP/architecture-a.mmd"
+          ! grep -q "javascript:" "$RUNNER_TEMP/architecture-a.mmd"
+
+      - name: Publish presentation evidence
+        shell: bash
+        run: |
+          {
+            echo "## Sazan Architecture Presentation Lab"
+            echo
+            echo "Verified deterministic CodeGraph JSON → Mermaid rendering."
+            echo
+            echo "~~~mermaid"
+            cat "$RUNNER_TEMP/architecture-a.mmd"
+            echo "~~~"
+          } >> "$GITHUB_STEP_SUMMARY"
