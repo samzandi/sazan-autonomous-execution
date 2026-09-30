@@ -8,7 +8,8 @@ components:
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/orchestrate_repository_intelligence.py
     evidence_envelope: agents/repo-skill-steward/repository-intelligence/scripts/evidence_envelope.py
     license: repository-license
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36750536038
     properties:
       - deterministic-stage-order
       - common-evidence-envelope
