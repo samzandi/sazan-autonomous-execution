@@ -89,7 +89,7 @@ jobs:
           start="$(date +%s%N)"
           npx --yes repomix@1.18.1 "$FIXTURE" \
             --style markdown \
-            --output-file "$RUNNER_TEMP/repomix.md" \
+            --output "$RUNNER_TEMP/repomix.md" \
             > "$RUNNER_TEMP/repomix.log" 2>&1
           end="$(date +%s%N)"
           echo "$(( (end-start)/1000000 ))" > "$RUNNER_TEMP/repomix.ms"
