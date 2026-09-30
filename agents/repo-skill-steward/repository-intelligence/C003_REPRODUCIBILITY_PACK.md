@@ -2,7 +2,7 @@
 
 Context: C003
 Date: 2026-09-30
-Status: CANDIDATE
+Status: VERIFIED / PROMOTED
 Milestone: 5
 
 ## Goal
@@ -39,4 +39,16 @@ The pack records blocked live-runtime proofs rather than converting them into su
 
 This means reproducibility can be verified independently while release readiness remains correctly blocked.
 
-Status remains CANDIDATE until the reproducibility lab and repository regressions pass.
+Status: VERIFIED / PROMOTED.
+
+## Verification evidence
+
+- initial run 36769859689 correctly blocked because the workflow itself created Python bytecode artifacts before the clean-workspace check;
+- the workflow was hardened to compile source in memory and set PYTHONDONTWRITEBYTECODE=1;
+- verified reproducibility run: 36770061102;
+- reproducibility contract tests passed;
+- two independently generated packs were byte-for-byte identical;
+- validator rebuilt and accepted the pack against the checked-out repository;
+- core C002/C003 reproduction commands passed;
+- all repository regression workflows passed;
+- blocked Codex and Claude live-runtime evidence remains explicitly recorded rather than promoted.
