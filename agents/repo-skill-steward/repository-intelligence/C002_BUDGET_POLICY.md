@@ -18,6 +18,21 @@ Verified:
 - upstream provider failure remained the primary failure cause;
 - legacy non-strict manifests remained compatible.
 
+Verified lab run: 36757285076
+
+Verified:
+- 18 budget and orchestration contract tests passed;
+- cumulative context-token and output-byte budgets were enforced;
+- graph-node usage used the maximum observed graph rather than repeated summation;
+- stage timeout overrun blocked execution;
+- strict mode blocked missing required measurements;
+- context-token measurements required an explicit counting method;
+- provider truncation was blocked by default and only allowed as an explicit constrained result;
+- exact output-byte and graph-node helpers were validated;
+- provider failures remained provider failures rather than being masked by budget enforcement;
+- legacy manifests remained non-strict for backward compatibility;
+- the final envelope persisted cumulative usage and auditable per-stage budget receipts.
+
 ## Purpose
 
 Turn declared run budgets into machine-enforced limits rather than advisory metadata.
