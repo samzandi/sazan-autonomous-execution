@@ -152,6 +152,7 @@ def evaluate(
     measured = normalize_metrics(metrics)
 
     missing = sorted(set(required) - set(measured))
+    unmeasured = sorted(set(BUDGET_KEYS) - set(measured))
     violations: list[str] = []
     constraints: list[str] = []
 
@@ -225,6 +226,7 @@ def evaluate(
         "required_metrics": sorted(set(required)),
         "measured": measured,
         "missing_required": missing,
+        "unmeasured": unmeasured,
         "checks": checks,
         "usage": next_usage,
         "remaining": remaining,
