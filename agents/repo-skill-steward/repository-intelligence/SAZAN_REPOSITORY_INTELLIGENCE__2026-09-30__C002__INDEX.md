@@ -13,8 +13,8 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 
 - orchestration entry point — VERIFIED / PROMOTED;
 - common evidence-envelope schema — VERIFIED / PROMOTED;
-- multi-repository registry;
-- cross-repository contracts;
+- multi-repository registry — IMPLEMENTED, pending lab;
+- cross-repository contracts — IMPLEMENTED, pending lab;
 - process-flow synthesis;
 - diff-impact normalization;
 - token and output budgets;
@@ -49,3 +49,22 @@ Status: VERIFIED — orchestration lab run 36750536038; 9 contract tests passed.
 - commercial core must remain independent from non-commercial/reference-only implementations;
 - semantic edits stay branch/worktree isolated;
 - every new executable path requires lab evidence and rollback.
+
+
+## Milestone 2 — Multi-repository registry and contracts
+
+Implementation:
+- `scripts/multi_repo_registry.py`;
+- `C002_MULTI_REPO_CONTRACT.md`;
+- multi-repository contract unit tests;
+- four-repository integration lab.
+
+Model:
+- repositories declare evidence-backed `provides` and `requires` observations;
+- matching produces directed provider→consumer contracts;
+- upstream/downstream topology is generated automatically;
+- internal unresolved, ambiguous, or version-incompatible contracts block the workspace;
+- external requirements are recorded without pretending they are internally provided;
+- private/internal repositories require stable opaque IDs and never persist source names.
+
+Status: pending C002 multi-repository lab.
