@@ -60,20 +60,19 @@ components:
   - name: sazan-diff-impact-normalizer
     role: cross-repository-diff-to-impact-normalization
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py
-    local_semantic_provider: codegraph-analyze-impact
+    local_diff_provider: codegraph-0.20.1
     license: repository-license
-    status: promoted-primary
-    lab_run_id: 36754987264
+    status: proposed-primary-pending-lab
     properties:
-      - evidence-backed-change-observations
-      - codegraph-local-semantic-impact
-      - symbol-and-step-mapping
+      - real-git-diff-pr-context
+      - focused-symbol-analyze-impact
+      - evidence-backed-symbol-step-mapping
       - contract-impact-propagation
       - process-flow-downstream-propagation
-      - contract-version-compatibility-findings
-      - partial-evidence-state-for-unmapped-changes
-      - factual-test-and-review-scope
-      - no-speculative-numeric-risk-score
+      - compatibility-version-mismatch-reporting
+      - partial-evidence-on-unmapped-change
+      - factual-test-review-scope
+      - no-synthetic-risk-score
       - privacy-safe-repository-ids
       - deterministic-output
 
@@ -481,7 +480,8 @@ process_flow_routing:
 
 diff_impact_routing:
   primary: sazan-diff-impact-normalizer
-  local_semantic_provider: codegraph-analyze-impact
+  local_branch_diff_provider: codegraph-pr-context
+  focused_symbol_provider: codegraph-analyze-impact
   context: C002
   propagation_inputs:
     - multi-repo-registry
@@ -489,5 +489,5 @@ diff_impact_routing:
     - process-flow-graph
     - evidence-backed-change-mappings
   incomplete_mapping_status: partial-evidence
-  numeric_risk_scores: disabled
+  synthetic_numeric_risk_scores: false
   private_source_names_required: false
