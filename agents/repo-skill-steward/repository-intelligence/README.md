@@ -20,6 +20,10 @@ C002 adds `scripts/multi_repo_registry.py` for stable repository identity, upstr
 
 C002 adds `scripts/process_flow_synthesis.py` to reconstruct bounded, evidence-backed runtime paths across repositories. Repository boundaries can only be crossed through matched contracts, and each cross-repository hop declares its runtime direction explicitly.
 
+## Diff → impact layer
+
+C002 adds `scripts/diff_impact_normalize.py` to combine local semantic change impact with cross-repository contracts and execution flows. The output is a normalized blast radius covering affected files, tests, steps, contracts, flows, and repositories, while preserving private-path redaction.
+
 ## Operating pipeline
 
 1. Intake and provenance
