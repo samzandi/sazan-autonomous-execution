@@ -2,7 +2,19 @@
 
 Context: C001
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
+
+Verified lab run: 36747513165
+
+Verified:
+- seven rebuild-spec contract tests passed;
+- executable fixture behavior was independently validated;
+- CodeGraph call-graph evidence recovered handle_checkout → calculate_total → normalize_amount;
+- CodeGraph dependency and architecture evidence fed the specification;
+- Markdown and JSON rebuild outputs were deterministic;
+- OBSERVED, INFERRED, and UNKNOWN states were preserved;
+- an injected unsupported OBSERVED claim was rejected;
+- no external LLM was required by the baseline rebuild-spec contract.
 
 ## Objective
 
