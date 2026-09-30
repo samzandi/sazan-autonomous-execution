@@ -43,11 +43,25 @@ jobs:
               publish_order_created("fixture-order")
               return {"total": total}
           PY
-          git init -q "$fixture"
+          git init -q -b main "$fixture"
           git -C "$fixture" config user.email "ci@example.invalid"
           git -C "$fixture" config user.name "Sazan CI"
           git -C "$fixture" add .
-          git -C "$fixture" commit -qm "fixture"
+          git -C "$fixture" commit -qm "base fixture"
+          git -C "$fixture" checkout -qb feature/change-checkout
+
+          cat > "$fixture/api/checkout.py" <<'PY'
+          def publish_order_created(order_id):
+              return {"event": "order.created", "order_id": order_id}
+
+          def handle_checkout(items, tax=0.0):
+              total = round(sum(items) + tax, 2)
+              publish_order_created("fixture-order")
+              return {"total": total}
+          PY
+
+          git -C "$fixture" add api/checkout.py
+          git -C "$fixture" commit -qm "change checkout signature"
           echo "API_FIXTURE=$fixture" >> "$GITHUB_ENV"
 
       - name: Download and verify CodeGraph 0.20.1
@@ -59,6 +73,20 @@ jobs:
           echo "32b26422fa5ffe0a130955b7f7df771f722b2d427d67f53f104d9907bdfb24a6  $bin" | sha256sum -c -
           chmod +x "$bin"
           echo "CODEGRAPH_BIN=$bin" >> "$GITHUB_ENV"
+
+      - name: Collect real branch diff context
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$API_FIXTURE"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_pr_context \
+            --tool-args '{"baseBranch":"main","compact":false}' \
+            > "$RUNNER_TEMP/codegraph-pr-context.txt"
+          test -s "$RUNNER_TEMP/codegraph-pr-context.txt"
+          grep -q "handle_checkout" "$RUNNER_TEMP/codegraph-pr-context.txt"
+          grep -Eq "changed_files|PR changes" "$RUNNER_TEMP/codegraph-pr-context.txt"
+          grep -Eq "risk_level|Risk" "$RUNNER_TEMP/codegraph-pr-context.txt"
 
       - name: Collect real local semantic impact evidence
         shell: bash
@@ -259,7 +287,8 @@ jobs:
           {
             echo "## C002 Diff → Impact Lab"
             echo
-            echo "- Real CodeGraph local semantic-impact evidence was collected for the changed API symbol."
+            echo "- CodeGraph 0.20.1 pr_context analyzed a real branch diff."
+            echo "- CodeGraph analyze_impact supplied focused local semantic-impact evidence for the changed API symbol."
             echo "- Symbol impact propagated downstream through the verified process flow."
             echo "- HTTP contract version change expanded review to both parties and downstream flow participants."
             echo "- Version mismatch was reported as a compatibility finding."
