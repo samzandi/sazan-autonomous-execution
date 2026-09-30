@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "context": "C003",
+  "scope": "repository-intelligence-c002-c003",
+  "required_files": [
+    ".github/workflows/repository-intelligence-c002-end-to-end-lab.yml",
+    ".github/workflows/repository-intelligence-c003-failure-rollback-lab.yml",
+    ".github/workflows/repository-intelligence-c003-runtime-parity-lab.yml",
+    "agents/repo-skill-steward/repository-intelligence/scripts/budget_guard.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/build_reproducibility_pack.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/evaluate_promotion.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/evidence_envelope.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/incremental_cache.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/multi_repo_registry.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/orchestrate_repository_intelligence.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/process_flow_synthesis.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/provider_health.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/rollback_evidence.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/run_c002_e2e_lab.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/run_c003_failure_rollback_lab.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/runtime_contract_parity.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/validate_reproducibility_pack.py"
+  ],
+  "external_tools": [
+    {
+      "name": "actions-checkout",
+      "version": "commit",
+      "source": "github:actions/checkout",
+      "immutable_ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "integrity": "immutable-commit"
+    },
+    {
+      "name": "code2prompt",
+      "version": "4.2.0",
+      "source": "github:mufeedvh/code2prompt",
+      "immutable_ref": "v4.2.0",
+      "sha256": "69ff91f6e690de4814f38eb79d1fff5971d5a39bdc82b23ea784dcd450bf965f",
+      "integrity": "release-artifact-sha256"
+    },
+    {
+      "name": "codegraph",
+      "version": "0.20.1",
+      "source": "github:codegraph-ai/CodeGraph",
+      "immutable_ref": "v0.20.1",
+      "sha256": "32b26422fa5ffe0a130955b7f7df771f722b2d427d67f53f104d9907bdfb24a6",
+      "integrity": "release-artifact-sha256"
+    },
+    {
+      "name": "gitingest",
+      "version": "0.3.1",
+      "source": "pypi:gitingest",
+      "immutable_ref": "0.3.1",
+      "integrity": "package-version-pin"
+    },
+    {
+      "name": "repomix",
+      "version": "1.18.1",
+      "source": "npm:repomix",
+      "immutable_ref": "1.18.1",
+      "integrity": "package-version-pin"
+    },
+    {
+      "name": "serena",
+      "version": "1.7.0",
+      "source": "github:oraios/serena",
+      "immutable_ref": "949a27ef1e5fda1a6e7b561e777bcece345c6ffd",
+      "integrity": "immutable-commit"
+    },
+    {
+      "name": "uv",
+      "version": "0.12.21",
+      "source": "github:astral-sh/uv",
+      "immutable_ref": "0.12.21",
+      "sha256": "23f02075b652bb1df64178cfae41b5caf160822e720e2663568f3f5d63bc52c0",
+      "integrity": "release-artifact-sha256"
+    }
+  ],
+  "verified_runs": [
+    {
+      "milestone": "C002-orchestration",
+      "run_id": 36750536038,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-multi-repository",
+      "run_id": 36751884638,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-process-flow",
+      "run_id": 36753107333,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-diff-impact",
+      "run_id": 36755232124,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-budget",
+      "run_id": 36757285076,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-provider-health",
+      "run_id": 36759816437,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-incremental-cache",
+      "run_id": 36763808082,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-end-to-end",
+      "run_id": 36764817135,
+      "status": "verified"
+    },
+    {
+      "milestone": "C003-runtime-parity-engine",
+      "run_id": 36768157558,
+      "status": "verified"
+    },
+    {
+      "milestone": "C003-failure-rollback",
+      "run_id": 36769117578,
+      "status": "verified"
+    }
+  ],
+  "runtime_proofs": [
+    {
+      "runtime": "codex",
+      "status": "blocked",
+      "run_id": 36766115291,
+      "blocker": "external API quota exhausted"
+    },
+    {
+      "runtime": "claude-code",
+      "status": "blocked",
+      "run_id": 36767883113,
+      "blocker": "external runtime authentication not configured"
+    }
+  ],
+  "reproduction_commands": [
+    "python3 -m unittest tests/test_repository_intelligence_e2e.py",
+    "python3 -m unittest tests/test_repository_intelligence_c003_runtime_parity.py",
+    "python3 -m unittest tests/test_repository_intelligence_c003_rollback.py",
+    "python3 agents/repo-skill-steward/repository-intelligence/scripts/run_c002_e2e_lab.py --output $RUNNER_TEMP/c002-e2e.json --require-verified",
+    "python3 agents/repo-skill-steward/repository-intelligence/scripts/run_c003_failure_rollback_lab.py --output $RUNNER_TEMP/c003-rollback.json --require-verified"
+  ]
+}

@@ -1,0 +1,91 @@
+name: Repository Intelligence C003 Reproducibility Pack Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-c003-reproducibility-pack-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/C003_REPRODUCIBILITY_PACK.md"
+      - "agents/repo-skill-steward/repository-intelligence/reproducibility/**"
+      - "agents/repo-skill-steward/repository-intelligence/scripts/build_reproducibility_pack.py"
+      - "agents/repo-skill-steward/repository-intelligence/scripts/validate_reproducibility_pack.py"
+      - "tests/test_repository_intelligence_c003_reproducibility.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproducibility-pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Compile pack tooling without filesystem side effects
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          paths = [
+              Path("agents/repo-skill-steward/repository-intelligence/scripts/build_reproducibility_pack.py"),
+              Path("agents/repo-skill-steward/repository-intelligence/scripts/validate_reproducibility_pack.py"),
+          ]
+          for path in paths:
+              compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          PY
+
+      - name: Run reproducibility contract tests
+        run: python3 -m unittest tests/test_repository_intelligence_c003_reproducibility.py
+
+      - name: Build deterministic pack twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          spec="agents/repo-skill-steward/repository-intelligence/reproducibility/c003_reproducibility_spec.json"
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/build_reproducibility_pack.py             --repo-root .             --spec "$spec"             --output "$RUNNER_TEMP/repro-pack-1.json"
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/build_reproducibility_pack.py             --repo-root .             --spec "$spec"             --output "$RUNNER_TEMP/repro-pack-2.json"
+          cmp -s "$RUNNER_TEMP/repro-pack-1.json" "$RUNNER_TEMP/repro-pack-2.json"
+
+      - name: Validate deterministic pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          spec="agents/repo-skill-steward/repository-intelligence/reproducibility/c003_reproducibility_spec.json"
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/validate_reproducibility_pack.py             "$RUNNER_TEMP/repro-pack-1.json"             --repo-root .             --spec "$spec"             --output "$RUNNER_TEMP/repro-validation.json"             --require-verified
+
+      - name: Re-run core reproduction commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest tests/test_repository_intelligence_e2e.py
+          python3 -m unittest tests/test_repository_intelligence_c003_runtime_parity.py
+          python3 -m unittest tests/test_repository_intelligence_c003_rollback.py
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/run_c002_e2e_lab.py             --output "$RUNNER_TEMP/c002-e2e.json"             --require-verified
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/run_c003_failure_rollback_lab.py             --output "$RUNNER_TEMP/c003-rollback.json"             --require-verified
+
+      - name: Publish reproducibility evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/repro-pack-1.json" "$RUNNER_TEMP/repro-validation.json" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          pack = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          validation = json.loads(pathlib.Path(sys.argv[2]).read_text())
+          print("## C003 Reproducibility Pack")
+          print()
+          print(f"- Status: {validation['status']}")
+          print(f"- Source revision: {pack['source']['revision']}")
+          print(f"- Source tree: {pack['source']['tree_hash']}")
+          print(f"- Required files: {len(pack['files'])}")
+          print(f"- External tool pins: {len(pack['external_tools'])}")
+          print(f"- Verified workflow runs: {len(pack['verified_runs'])}")
+          print(f"- Pack fingerprint: {pack['pack_fingerprint']}")
+          print("- Live runtime blockers remain explicitly recorded.")
+          PY

@@ -102,3 +102,27 @@ Model:
 - promotion rollback status now requires evidence, not status alone.
 
 Status: VERIFIED / PROMOTED — real rollback lab run 36769117578 passed; promotion gate now requires rollback evidence; all repository regressions passed.
+
+
+## Milestone 5 — Reproducibility pack
+
+Implementation:
+- `reproducibility/c003_reproducibility_spec.json`;
+- `scripts/build_reproducibility_pack.py`;
+- `scripts/validate_reproducibility_pack.py`;
+- `tests/test_repository_intelligence_c003_reproducibility.py`;
+- `C003_REPRODUCIBILITY_PACK.md`;
+- `.github/workflows/repository-intelligence-c003-reproducibility-pack-lab.yml`.
+
+Model:
+- exact Git revision and tree hash are recorded;
+- workspace must be clean;
+- required implementation/workflow files are SHA-256 fingerprinted;
+- external tools are version/commit pinned and record artifact hashes where the verified workflows enforce them;
+- verified workflow run IDs are retained;
+- live Codex/Claude blockers remain explicit rather than being promoted to success;
+- reproduction commands are retained;
+- pack generation is deterministic and contains no timestamp or machine-specific absolute path;
+- a canonical pack fingerprint detects evidence drift.
+
+Status: VERIFIED / PROMOTED — deterministic reproducibility run 36770061102 passed; byte-identical pack generation, manifest validation, core reproduction commands, and all repository regressions passed.
