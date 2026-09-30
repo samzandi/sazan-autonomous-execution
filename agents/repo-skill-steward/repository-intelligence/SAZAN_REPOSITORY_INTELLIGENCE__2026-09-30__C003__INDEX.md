@@ -32,7 +32,7 @@ Required terminal state:
 - VERIFIED with reproducible evidence, or
 - BLOCKED with explicit reason and no promotion.
 
-Status: CANDIDATE — live Codex workflow implemented; awaiting authorized runtime evidence.
+Status: BLOCKED — live Codex runtime reached model execution, but OpenAI API quota is exhausted; promotion forbidden until a verified live run completes.
 
 ## Carried invariants
 
@@ -58,3 +58,19 @@ Runtime contract:
 - deterministic C002 baseline before the live run;
 - independent non-model validation after the live run;
 - fail closed when OPENAI_API_KEY is absent or any invariant fails.
+
+
+### Milestone 1 live evidence
+
+- workflow run: 36766115291;
+- OPENAI_API_KEY presence check: PASSED after configuration;
+- proof tooling validation: PASSED;
+- deterministic C002 baseline: PASSED;
+- Codex 0.159.2 startup: PASSED;
+- model: gpt-5.6-sol;
+- sandbox: read-only;
+- approval mode: never;
+- safety strategy: drop-sudo;
+- live inference: BLOCKED by OpenAI API quota;
+- repeated run reproduced the same external blocker;
+- no merge or promotion is permitted while blocked.
