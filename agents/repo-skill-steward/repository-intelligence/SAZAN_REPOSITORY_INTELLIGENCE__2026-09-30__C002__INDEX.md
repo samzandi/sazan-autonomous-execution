@@ -13,8 +13,8 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 
 - orchestration entry point — VERIFIED / PROMOTED;
 - common evidence-envelope schema — VERIFIED / PROMOTED;
-- multi-repository registry — IMPLEMENTED, pending lab;
-- cross-repository contracts — IMPLEMENTED, pending lab;
+- multi-repository registry — VERIFIED / PROMOTED;
+- cross-repository contracts — VERIFIED / PROMOTED;
 - process-flow synthesis;
 - diff-impact normalization;
 - token and output budgets;
@@ -67,4 +67,4 @@ Model:
 - external requirements are recorded without pretending they are internally provided;
 - private/internal repositories require stable opaque IDs and never persist source names.
 
-Status: pending C002 multi-repository lab.
+Status: VERIFIED — multi-repository lab run 36751884638; 13 unit/integration checks passed.
