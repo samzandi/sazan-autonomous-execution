@@ -17,7 +17,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - cross-repository contracts — VERIFIED / PROMOTED;
 - process-flow synthesis — VERIFIED / PROMOTED;
 - diff-impact normalization — VERIFIED / PROMOTED;
-- token and output budgets — IMPLEMENTED, pending lab;
+- token and output budgets — VERIFIED / PROMOTED;
 - provider fallback/health controls;
 - incremental state/cache strategy;
 - realistic end-to-end integration lab.
@@ -130,4 +130,4 @@ Model:
 - every stage persists a budget receipt and the envelope persists cumulative usage;
 - legacy manifests remain non-strict until explicitly upgraded.
 
-Status: pending C002 budget lab.
+Status: VERIFIED — budget lab run 36757285076; 18 contract tests plus strict orchestration validation passed.
