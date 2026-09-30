@@ -1,0 +1,78 @@
+version: 1
+verified_at: 2026-09-30
+context: C001
+
+components:
+  - name: repomix
+    role: primary-context-packer
+    repository: yamadashy/repomix
+    license: MIT
+    status: evaluate-for-promotion
+
+  - name: gitingest
+    role: lightweight-repository-ingest
+    repository: coderamp-labs/gitingest
+    license: MIT
+    status: evaluate-for-promotion
+
+  - name: code2prompt
+    role: scoped-context-and-agent-skill
+    repository: mufeedvh/code2prompt
+    license: MIT
+    status: evaluate-for-promotion
+
+  - name: codegraph
+    role: semantic-code-graph
+    repository: codegraph-ai/CodeGraph
+    license: Apache-2.0
+    status: preferred-graph-candidate
+
+  - name: gitdiagram
+    role: architecture-visualization
+    repository: ahmedkhaleel2004/gitdiagram
+    license: MIT
+    status: evaluate-for-promotion
+
+  - name: deepwiki-open
+    role: wiki-and-repository-qa
+    repository: AsyncFuncAI/deepwiki-open
+    license: MIT
+    status: evaluate-for-promotion
+
+  - name: serena
+    role: semantic-editing-adapter
+    repository: oraios/serena
+    license: GPL-3.0-or-later-for-current-application-code
+    status: external-adapter-only
+    notes:
+      - earlier releases remain under their historical licenses
+      - current main application code must not be vendored into Sazan core without licensing review
+
+  - name: gitreverse
+    role: synthetic-prompt-reverse-engineering
+    repository: filiksyos/gitreverse
+    license: unknown-in-current-review
+    status: reference-only
+
+  - name: gitnexus
+    role: benchmark-reference-architecture
+    repository: nxpatterns/gitnexus
+    license: PolyForm-Noncommercial-1.0.0
+    status: reference-only-no-commercial-embedding
+
+  - name: explaingithub
+    role: repository-qa-reference
+    repository: unknown
+    license: unknown
+    status: service-reference-only
+
+policy:
+  unknown_license: reference-only
+  noncommercial_license: no-commercial-embedding
+  promotion_requires:
+    - provenance
+    - license-review
+    - security-review
+    - lab-evidence
+    - capability-delta
+    - rollback-path
