@@ -2,7 +2,20 @@
 
 Context: C002
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
+
+Verified lab run: 36753107333
+
+Verified:
+- eleven process-flow contract tests passed;
+- Web → API → event → private worker → storage was reconstructed as one complete observed flow;
+- two repository boundaries were crossed only through matched contracts;
+- runtime direction was explicit at each cross-repository hop;
+- private repository source identity did not appear in persisted flow output;
+- inferred cross-repository evidence downgraded the complete flow to INFERRED;
+- direct cross-repository local edges and duplicate bindings were rejected;
+- cycles and unreachable steps were reported;
+- deterministic output was verified.
 
 ## Purpose
 
