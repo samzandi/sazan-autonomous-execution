@@ -108,7 +108,8 @@ SolidLSP remains MIT and is a future candidate for a Sazan-owned semantic editin
 ### L6 — Reverse Engineering
 Primary: Sazan clean-room rebuild specification
 Owner: reverse-engineering sub-agent
-Status: pending evidence lab
+Status: verified and promoted
+Evidence: reverse engineering lab run 36747513165
 
 Inputs:
 - provenance from L0;
@@ -155,7 +156,7 @@ Repository
   -> Architecture/Wiki
   -> License & Security
   -> Capability Extraction
-  -> Reverse-Engineering Hypothesis
+  -> Clean-room Rebuild Specification
   -> Verification
   -> Parent Steward Promotion Gate
 
