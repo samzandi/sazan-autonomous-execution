@@ -1,4 +1,4 @@
-version: 20
+version: 21
 verified_at: 2026-09-30
 context: C002
 
@@ -59,22 +59,22 @@ components:
 
   - name: sazan-diff-impact-normalizer
     role: local-to-cross-repository-blast-radius-normalization
-    implementation: agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalizer.py
     license: repository-license
-    status: promoted-primary
-    lab_run_id: 36755232124
+    status: revalidation-pending-lab
+    previous_lab_run_id: 36755232124
     properties:
-      - codegraph-impact-compatible
-      - provider-independent-normalized-schema
-      - local-file-symbol-test-impact
-      - contract-impact-propagation
-      - downstream-flow-propagation
+      - evidence-first-local-risk-preservation
+      - no-synthetic-global-risk
+      - observed-inferred-confidence
+      - explicit-contract-touch-side-validation
+      - process-flow-downstream-propagation
       - downstream-repository-review-scope
+      - related-test-preservation
       - private-absolute-path-redaction
-      - version-compatibility-findings
-      - deterministic-impact-level
-      - explicit-test-review-scope
+      - provider-consumer-version-side-compatibility
       - partial-evidence-state
+      - deterministic-output
 
   - name: repomix
     role: primary-context-packer
@@ -482,6 +482,11 @@ diff_impact_routing:
   primary: sazan-diff-impact-normalizer
   context: C002
   local_semantic_provider: codegraph
+  local_risk_policy: preserve-provider-evidence
+  synthetic_global_risk: false
+  evidence_confidence:
+    - observed
+    - inferred
   inputs:
     - verified-multi-repo-registry
     - matched-contract-graph
@@ -489,14 +494,8 @@ diff_impact_routing:
     - evidence-backed-change-set
   propagation:
     - local-semantic-impact
-    - contract-impact
+    - explicit-contract-touch
     - downstream-process-flow
     - downstream-repository-review
-  impact_levels:
-    - unknown
-    - low
-    - medium
-    - high
-    - critical
-  file_change_without_semantic_evidence: partial-evidence
+  file_or_symbol_without_semantic_evidence: partial-evidence
   private_absolute_paths_persisted: false
