@@ -1,0 +1,119 @@
+name: Repository Intelligence C003 Codex Runtime Proof
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-c003-codex-runtime-proof.yml"
+      - "agents/repo-skill-steward/repository-intelligence/C003_CODEX_RUNTIME_PROOF.md"
+      - "agents/repo-skill-steward/repository-intelligence/prompts/c003_codex_runtime_proof.md"
+      - "agents/repo-skill-steward/repository-intelligence/schemas/c003_codex_runtime_proof.schema.json"
+      - "agents/repo-skill-steward/repository-intelligence/scripts/validate_c003_codex_runtime_proof.py"
+      - "tests/test_repository_intelligence_c003_codex_runtime_proof.py"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  codex-runtime-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Require OpenAI API key
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OPENAI_API_KEY:-}" ]; then
+            echo "::error::C003 live Codex proof is BLOCKED: repository secret OPENAI_API_KEY is not configured."
+            exit 20
+          fi
+          echo "OpenAI API key prerequisite is configured."
+
+      - name: Validate proof tooling
+        run: |
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/validate_c003_codex_runtime_proof.py
+          python3 -m unittest tests/test_repository_intelligence_c003_codex_runtime_proof.py
+
+      - name: Produce deterministic C002 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/run_c002_e2e_lab.py             --output "$RUNNER_TEMP/c002-e2e-baseline.json"             --require-verified
+
+      - name: Run live Codex proof
+        id: codex
+        uses: openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: agents/repo-skill-steward/repository-intelligence/prompts/c003_codex_runtime_proof.md
+          output-file: ${{ runner.temp }}/c003-codex-output.json
+          output-schema-file: agents/repo-skill-steward/repository-intelligence/schemas/c003_codex_runtime_proof.schema.json
+          working-directory: ${{ github.workspace }}
+          permission-profile: ":read-only"
+          codex-version: "0.159.2"
+          model: "gpt-5.6-sol"
+          effort: "high"
+          safety-strategy: "drop-sudo"
+
+      - name: Capture runtime metadata
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          CODEX_CLI_VERSION="$(codex --version)"
+          BASELINE_SHA="$(sha256sum "$RUNNER_TEMP/c002-e2e-baseline.json" | awk '{print $1}')"
+          python3 - "$RUNNER_TEMP/c003-runtime-metadata.json" "$EXPECTED_HEAD" "$CODEX_CLI_VERSION" "$BASELINE_SHA" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          path, head, cli_version, baseline_sha = sys.argv[1:]
+          payload = {
+              "schema_version": 1,
+              "head_sha": head,
+              "model": "gpt-5.6-sol",
+              "codex_cli_version": cli_version,
+              "expected_codex_version": "0.159.2",
+              "action_commit": "86365089eb2b84e0a8fb0717b304f8bdcb13b20e",
+              "baseline_sha256": baseline_sha,
+          }
+          pathlib.Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+          PY
+
+      - name: Independently validate live Codex evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/validate_c003_codex_runtime_proof.py             --codex-output "$RUNNER_TEMP/c003-codex-output.json"             --baseline "$RUNNER_TEMP/c002-e2e-baseline.json"             --metadata "$RUNNER_TEMP/c003-runtime-metadata.json"             --report "$RUNNER_TEMP/c003-codex-runtime-proof-report.json"             --require-verified
+
+      - name: Publish C003 Codex evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/c003-codex-runtime-proof-report.json" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          report = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          runtime = report["runtime"]
+          print("## C003 Codex Runtime Proof")
+          print()
+          print(f"- Status: {report['status']}")
+          print(f"- Repository HEAD: {runtime['repository_head']}")
+          print(f"- Codex CLI: {runtime['codex_cli_version']}")
+          print(f"- Model: {runtime['model']}")
+          print(f"- Codex Action commit: {runtime['action_commit']}")
+          print(f"- C002 baseline: {report['baseline']['status']}")
+          print(f"- Promotion boundary: {report['baseline']['orchestration_status']}")
+          print("- Auto-promotion remained disabled.")
+          print("- Private repository identity redaction remained enforced.")
+          PY
