@@ -1,4 +1,4 @@
-version: 18
+version: 19
 verified_at: 2026-09-30
 context: C002
 
@@ -55,6 +55,24 @@ components:
       - bounded-max-paths
       - cycle-reporting
       - unreachable-step-reporting
+      - deterministic-output
+
+  - name: sazan-diff-impact-normalizer
+    role: cross-repository-diff-to-impact-normalization
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalizer.py
+    local_diff_provider: codegraph-pr-context
+    license: repository-license
+    status: proposed-primary-pending-lab
+    properties:
+      - real-git-diff-input
+      - codegraph-local-blast-radius
+      - contract-impact-propagation
+      - process-flow-impact-propagation
+      - downstream-repository-identification
+      - risk-confidence-separation
+      - observed-inferred-propagation
+      - related-test-target-preservation
+      - privacy-safe-repository-ids
       - deterministic-output
 
   - name: repomix
@@ -458,3 +476,16 @@ process_flow_routing:
     - inferred
   cycles_are_reported_not_auto-blocked: true
   no_complete_entry_terminal_flow: blocked
+
+diff_impact_routing:
+  primary: sazan-diff-impact-normalizer
+  local_diff_provider: codegraph-0.20.1-pr-context
+  focused_symbol_provider: codegraph-analyze-impact
+  context: C002
+  propagation_inputs:
+    - multi-repo-registry
+    - matched-contract-graph
+    - process-flow-graph
+    - evidence-backed-change-mappings
+  risk_and_confidence_are_separate: true
+  private_source_names_required: false
