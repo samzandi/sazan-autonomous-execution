@@ -28,6 +28,10 @@ C002 adds `scripts/diff_impact_normalize.py` to combine local semantic change im
 
 C002 uses `scripts/budget_guard.py` to turn token, graph, output-byte, and stage-time budgets into machine-enforced receipts. Production strict mode fails closed on missing required measurements, overages, or provider truncation; the guard does not silently trim artifacts.
 
+## Provider health and fallback routing
+
+C002 uses scripts/provider_health.py to separate provider health from stage eligibility and to make fallback explicit. The baseline automatic fallback is Repomix to Gitingest for L1 context packaging. Stages without an equivalent promoted provider fail closed instead of silently substituting a different tool.
+
 ## Operating pipeline
 
 1. Intake and provenance
