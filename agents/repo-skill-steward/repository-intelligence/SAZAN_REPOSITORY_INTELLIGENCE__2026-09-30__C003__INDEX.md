@@ -32,8 +32,29 @@ Required terminal state:
 - VERIFIED with reproducible evidence, or
 - BLOCKED with explicit reason and no promotion.
 
-Status: PLANNED.
+Status: CANDIDATE — live Codex workflow implemented; awaiting authorized runtime evidence.
 
 ## Carried invariants
 
 All C002 constraints remain binding. C003 may add runtime adapters and evidence, but it may not weaken promotion, privacy, licensing, security, provider-routing, budget, cache, or rollback controls.
+
+
+### Milestone 1 implementation
+
+- `C003_CODEX_RUNTIME_PROOF.md`;
+- `prompts/c003_codex_runtime_proof.md`;
+- `schemas/c003_codex_runtime_proof.schema.json`;
+- `scripts/validate_c003_codex_runtime_proof.py`;
+- `tests/test_repository_intelligence_c003_codex_runtime_proof.py`;
+- `.github/workflows/repository-intelligence-c003-codex-runtime-proof.yml`.
+
+Runtime contract:
+- official Codex GitHub Action pinned by commit SHA;
+- Codex CLI pinned to 0.159.2;
+- gpt-5.6-sol pinned as the runtime model;
+- read-only permission profile and drop-sudo safety strategy;
+- prompt-file usage instead of an inline prompt;
+- schema-constrained Codex output;
+- deterministic C002 baseline before the live run;
+- independent non-model validation after the live run;
+- fail closed when OPENAI_API_KEY is absent or any invariant fails.
