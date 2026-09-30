@@ -215,5 +215,33 @@ class MultiRepoRegistryTests(unittest.TestCase):
         )
 
 
+    def test_non_object_observation_is_rejected(self):
+        data = workspace()
+        data["repositories"][0]["requires"].append("not-an-object")
+        with self.assertRaisesRegex(ValueError, "entries must be objects"):
+            MODULE.build(data)
+
+    def test_contract_id_includes_contract_kind(self):
+        data = workspace()
+        data["repositories"][1]["provides"].append({
+            "key": "http.checkout.v1",
+            "kind": "custom",
+            "version": "1.0.0",
+            "state": "observed",
+            "evidence": ["api:custom-contract"],
+        })
+        data["repositories"][0]["requires"].append({
+            "key": "http.checkout.v1",
+            "kind": "custom",
+            "version": "1.0.0",
+            "provider_hint": "api",
+            "state": "observed",
+            "evidence": ["web:custom-client"],
+        })
+        _registry, report = MODULE.build(data)
+        ids = [c["contract_id"] for c in report["contracts"] if c["consumer"] == "web"]
+        self.assertEqual(len(ids), len(set(ids)))
+
+
 if __name__ == "__main__":
     unittest.main()
