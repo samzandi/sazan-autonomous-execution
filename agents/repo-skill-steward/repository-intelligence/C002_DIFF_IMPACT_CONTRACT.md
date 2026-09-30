@@ -2,7 +2,19 @@
 
 Context: C002
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
+
+Verified lab run: 36754987264
+
+Verified:
+- eleven diff-impact contract tests passed;
+- real CodeGraph `codegraph_analyze_impact` evidence was collected for a changed API symbol;
+- a local symbol change propagated only from the affected point downstream through the verified process flow;
+- an HTTP contract version change expanded review to both contract parties and downstream flow participants;
+- a recorded consumer requirement mismatch was reported as a compatibility finding;
+- a file-only change without semantic mapping remained `partial-evidence`;
+- private repository source identity did not appear in persisted impact output;
+- deterministic output was verified.
 
 ## Purpose
 
