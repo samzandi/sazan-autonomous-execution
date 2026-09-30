@@ -1,4 +1,4 @@
-version: 11
+version: 12
 verified_at: 2026-09-30
 context: C001
 
@@ -203,11 +203,38 @@ components:
     license: MIT
     status: future-sazan-owned-adapter-candidate
 
+  - name: sazan-rebuild-spec
+    role: primary-clean-room-reverse-engineering
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/build_rebuild_spec.py
+    subagent: agents/repo-skill-steward/repository-intelligence/subagents/reverse-engineering/SKILL.md
+    license: repository-license
+    status: proposed-primary-pending-lab
+    properties:
+      - evidence-ledger
+      - observed-inferred-unknown-claim-states
+      - deterministic-markdown-and-json
+      - acceptance-criteria-required
+      - rejects-unsupported-observed-claims
+      - clean-room-behavior-and-contract-focus
+      - verifier-gated
+
   - name: gitreverse
-    role: synthetic-prompt-reverse-engineering
+    role: synthetic-prompt-reverse-engineering-reference
     repository: filiksyos/gitreverse
-    license: unknown-in-current-review
+    license: unknown-no-license-detected
     status: reference-only
+    observed_scope:
+      - public-github-repository
+      - repository-metadata
+      - depth-1-tree-in-quick-flow
+      - readme-up-to-8000-characters
+      - single-120-200-word-synthetic-user-prompt
+      - hosted-llm-provider-required-for-generation
+    constraints:
+      - no-root-license-file-found
+      - github-license-field-null
+      - shallow-evidence-not-sufficient-for-authoritative-rebuild-spec
+      - do-not-vendor-or-copy-implementation
 
   - name: gitnexus
     role: benchmark-reference-architecture
@@ -263,6 +290,25 @@ semantic_editing_routing:
   current_serena_v2: external-reference-only
   direct_default_branch_edits: false
   post_edit_verification_required: true
+
+reverse_engineering_routing:
+  primary: sazan-rebuild-spec
+  subagent: reverse-engineering
+  evidence_sources:
+    - intake-provenance
+    - context-packaging
+    - semantic-graph
+    - architecture-presentation
+    - wiki-qa
+    - runtime-tests
+    - license-security
+  external_reference_only: gitreverse
+  claim_states:
+    - observed
+    - inferred
+    - unknown
+  verifier_gate_required: true
+  clean_room_output_required: true
 
 policy:
   unknown_license: reference-only
