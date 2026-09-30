@@ -124,6 +124,13 @@ class PromotionGateTests(unittest.TestCase):
         result = MODULE.evaluate(data)
         self.assertEqual(result["decision"], "pending-evidence")
 
+    def test_verified_rollback_without_evidence_is_pending(self):
+        data = package()
+        data["checks"]["rollback"]["evidence"] = []
+        result = MODULE.evaluate(data)
+        self.assertEqual(result["decision"], "pending-evidence")
+        self.assertTrue(any("rollback" in reason for reason in result["reasons"]))
+
     def test_duplicate_core_capability_is_rejected(self):
         data = package()
         data["checks"]["capability_delta"]["status"] = "duplicate"
