@@ -2,7 +2,7 @@
 
 Context: C003
 Date: 2026-09-30
-Status: CANDIDATE
+Status: BLOCKED
 Milestone: 1
 
 ## Goal
@@ -47,3 +47,25 @@ Terminal states:
 The GitHub repository must have an Actions secret named OPENAI_API_KEY. The secret value is never committed, logged, or persisted in the Repository Intelligence evidence package.
 
 Status remains CANDIDATE until a live workflow run is VERIFIED.
+
+
+## Live execution evidence
+
+Workflow run: 36766115291
+
+Attempt sequence:
+- initial run: blocked before Codex because OPENAI_API_KEY was absent;
+- rerun after configuring the secret: prerequisite, validator tooling, and deterministic C002 baseline all passed;
+- Codex 0.159.2 started successfully with gpt-5.6-sol, read-only sandbox, approval=never, and drop-sudo hardening;
+- provider reported: codex-action-responses-proxy;
+- live request failed with: Quota exceeded. Check your plan and billing details.;
+- a second rerun reproduced the same quota blocker.
+
+Interpretation:
+- repository wiring is valid;
+- the secret is present and accepted by the action;
+- Codex runtime installation and sandbox initialization are valid;
+- no Repository Intelligence invariant failed;
+- the external OpenAI API quota prevents model execution from completing.
+
+Promotion remains forbidden while this blocker exists.
