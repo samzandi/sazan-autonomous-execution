@@ -1,4 +1,4 @@
-version: 4
+version: 5
 verified_at: 2026-09-30
 context: C001
 
@@ -10,6 +10,18 @@ components:
     license: MIT
     status: promoted-primary
     lab_run_id: 36739897813
+    lab_observation:
+      output_bytes: 2277
+      output_lines: 86
+      elapsed_ms: 6186
+      gitignore_marker_present: false
+    evidence:
+      - token-aware-packaging
+      - git-aware-filtering
+      - remote-repository-input
+      - secretlint-backed-secret-detection
+      - tree-sitter-compression
+      - multi-format-output
 
   - name: gitingest
     role: lightweight-python-ingest-fallback
@@ -18,6 +30,18 @@ components:
     license: MIT
     status: promoted-fallback
     lab_run_id: 36739897813
+    lab_observation:
+      output_bytes: 1281
+      output_lines: 53
+      elapsed_ms: 1250
+      gitignore_marker_present: false
+    evidence:
+      - cli
+      - python-sync-api
+      - python-async-api
+      - url-ingest
+      - gitignore-support
+      - self-host-docker
 
   - name: code2prompt
     role: scoped-agent-context-and-mcp
@@ -27,23 +51,50 @@ components:
     status: promoted-agent-path-with-git-repository-constraint
     linux_x86_64_sha256: 69ff91f6e690de4814f38eb79d1fff5971d5a39bdc82b23ea784dcd450bf965f
     lab_run_id: 36739897813
+    lab_observation:
+      output_bytes: 827
+      output_lines: 59
+      elapsed_ms: 52
+      gitignore_marker_present: false
+    constraints:
+      - plain-directory lab attempt included the gitignored marker
+      - use against an initialized Git repository when gitignore semantics are required
+    evidence:
+      - rust-core
+      - cli-and-tui
+      - python-sdk
+      - mcp
+      - templates
+      - token-estimation
+      - git-integration
 
   - name: codegraph
-    role: semantic-code-graph
+    role: primary-semantic-code-graph
     repository: codegraph-ai/CodeGraph
     pinned_version: 0.20.1
     license: Apache-2.0
-    status: proposed-primary-pending-lab
+    status: promoted-primary
     linux_x86_64_sha256: 32b26422fa5ffe0a130955b7f7df771f722b2d427d67f53f104d9907bdfb24a6
+    lab_run_id: 36740772666
     evaluation_mode: graph-only
     telemetry: off
-    evidence_targets:
-      - symbol-search
-      - cross-file-callers
+    verified:
+      symbol_search: true
+      cross_file_callers: true
+      dependency_graph: true
+      impact_analysis: true
+    evidence:
+      - 38-language-tree-sitter-parsing
+      - mcp
+      - call-graph
       - dependency-graph
       - impact-analysis
-      - mcp
+      - related-test-discovery
       - architecture-doc-generation
+      - documentation-verification
+    constraints:
+      - community-and-pro-capabilities-must-not-be-conflated
+      - pro-only-security-or-cross-project-features-are-not-core-evidence
 
   - name: gitdiagram
     role: architecture-visualization
@@ -62,6 +113,9 @@ components:
     repository: oraios/serena
     license: GPL-3.0-or-later-for-current-application-code
     status: external-adapter-only
+    notes:
+      - earlier releases remain under their historical licenses
+      - current main application code must not be vendored into Sazan core without licensing review
 
   - name: gitreverse
     role: synthetic-prompt-reverse-engineering
@@ -98,8 +152,10 @@ context_packaging_routing:
 
 semantic_graph_routing:
   primary: codegraph
+  primary_mode: graph-only
   benchmark_reference_only: gitnexus
   engine_abstraction_owned_by_sazan: true
+  graph_first_for_structural_relationships: true
 
 policy:
   unknown_license: reference-only
