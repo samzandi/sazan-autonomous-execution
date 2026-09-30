@@ -22,6 +22,7 @@ def _load_module(name: str, path: Path):
 
 
 ENV = _load_module("evidence_envelope", HERE / "evidence_envelope.py")
+BUDGET = _load_module("budget_guard", HERE / "budget_guard.py")
 PROMOTION = _load_module("evaluate_promotion", HERE / "evaluate_promotion.py")
 
 
@@ -66,9 +67,52 @@ def plan(envelope: dict[str, Any]) -> dict[str, Any]:
             "auto_promote": False,
             "parent_approval_required": True,
             "private_identity_persistence": False,
+            "budget_enforcement": True,
+            "budget_violation_blocks_stage": True,
         },
     }
 
+
+
+def _apply_with_budget(
+    envelope: dict[str, Any],
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    stage_id = str(result.get("stage", "")).strip()
+    metrics = result.get("metrics", {})
+    decision = BUDGET.evaluate(
+        envelope["budgets"],
+        envelope.get("budget_usage"),
+        stage_id,
+        metrics,
+    )
+
+    guarded = dict(result)
+    guarded["constraints"] = sorted(set(
+        list(result.get("constraints", [])) + decision["constraints"]
+    ))
+
+    if decision["decision"] == "block":
+        guarded["status"] = "blocked"
+        guarded["error"] = "; ".join(decision["violations"])
+        guarded["constraints"] = sorted(set(
+            guarded["constraints"] + decision["violations"]
+        ))
+    elif decision["decision"] == "allow-with-constraints":
+        if guarded.get("status") == "passed":
+            guarded["status"] = "passed-with-constraints"
+
+    updated = ENV.apply_stage_result(envelope, guarded)
+    updated["budget_usage"] = decision["usage"]
+
+    stage = next(s for s in updated["stages"] if s["id"] == stage_id)
+    stage["budget"] = {
+        "decision": decision["decision"],
+        "remaining": decision["remaining"],
+        "violations": decision["violations"],
+        "unmeasured": decision["unmeasured"],
+    }
+    return updated
 
 def promotion_package(envelope: dict[str, Any]) -> dict[str, Any]:
     cross = envelope["cross_cutting"]
@@ -129,7 +173,7 @@ def run(manifest: Path, stage_dir: Path) -> tuple[dict[str, Any], dict[str, Any]
         result = _load(result_path)
         if result.get("stage") != stage["id"]:
             raise ValueError(f"{result_path}: stage ID mismatch")
-        envelope = ENV.apply_stage_result(envelope, result)
+        envelope = _apply_with_budget(envelope, result)
         if envelope["status"] in {"failed", "blocked"}:
             break
 
@@ -160,7 +204,7 @@ def run(manifest: Path, stage_dir: Path) -> tuple[dict[str, Any], dict[str, Any]
             "constraints": decision["constraints"],
             "error": None if decision["decision"] in PROMOTION.FINAL_ELIGIBLE else "; ".join(decision["reasons"]),
         }
-        envelope = ENV.apply_stage_result(envelope, l7_result)
+        envelope = _apply_with_budget(envelope, l7_result)
         envelope["promotion"] = decision
 
     ENV.validate_envelope(envelope)
