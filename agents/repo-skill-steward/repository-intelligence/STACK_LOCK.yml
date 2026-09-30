@@ -43,7 +43,8 @@ components:
     role: cross-repository-process-and-execution-flow-synthesis
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/process_flow_synthesis.py
     license: repository-license
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36753107333
     properties:
       - matched-contract-boundary-enforcement
       - explicit-runtime-flow-direction
