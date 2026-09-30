@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/branding/sazan-autonomous-execution-banner.svg" alt="Sazan Autonomous Execution" width="100%" />
+</p>
+
 # Sazan Autonomous Execution
 
 A platform-independent execution-control skill for AI agents that plans, executes, validates, recovers, documents, and continues until completion or a genuine human decision is required.
@@ -14,6 +18,7 @@ Use `ESCALATE` only for genuine human-required blockers.
 
 ## Repository structure
 
+- `assets/branding/` — repository-specific Sazan child-brand assets
 - `SKILL.md` — reusable execution policy
 - `AGENTS.md` — repository-level agent instructions
 - `docs/execution-model.md` — state machine and control flow
