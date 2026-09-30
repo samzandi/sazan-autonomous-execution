@@ -3,22 +3,24 @@
   "context": "C003",
   "scope": "repository-intelligence-c002-c003",
   "required_files": [
-    "agents/repo-skill-steward/repository-intelligence/scripts/evidence_envelope.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/orchestrate_repository_intelligence.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/multi_repo_registry.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/process_flow_synthesis.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/budget_guard.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/provider_health.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/incremental_cache.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/run_c002_e2e_lab.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/evaluate_promotion.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/runtime_contract_parity.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/rollback_evidence.py",
-    "agents/repo-skill-steward/repository-intelligence/scripts/run_c003_failure_rollback_lab.py",
     ".github/workflows/repository-intelligence-c002-end-to-end-lab.yml",
+    ".github/workflows/repository-intelligence-c003-failure-rollback-lab.yml",
     ".github/workflows/repository-intelligence-c003-runtime-parity-lab.yml",
-    ".github/workflows/repository-intelligence-c003-failure-rollback-lab.yml"
+    "agents/repo-skill-steward/repository-intelligence/scripts/budget_guard.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/build_reproducibility_pack.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/evaluate_promotion.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/evidence_envelope.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/incremental_cache.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/multi_repo_registry.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/orchestrate_repository_intelligence.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/process_flow_synthesis.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/provider_health.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/rollback_evidence.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/run_c002_e2e_lab.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/run_c003_failure_rollback_lab.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/runtime_contract_parity.py",
+    "agents/repo-skill-steward/repository-intelligence/scripts/validate_reproducibility_pack.py"
   ],
   "external_tools": [
     {
@@ -75,16 +77,56 @@
     }
   ],
   "verified_runs": [
-    {"milestone": "C002-orchestration", "run_id": 36750536038, "status": "verified"},
-    {"milestone": "C002-multi-repository", "run_id": 36751884638, "status": "verified"},
-    {"milestone": "C002-process-flow", "run_id": 36753107333, "status": "verified"},
-    {"milestone": "C002-diff-impact", "run_id": 36755232124, "status": "verified"},
-    {"milestone": "C002-budget", "run_id": 36757285076, "status": "verified"},
-    {"milestone": "C002-provider-health", "run_id": 36759816437, "status": "verified"},
-    {"milestone": "C002-incremental-cache", "run_id": 36763808082, "status": "verified"},
-    {"milestone": "C002-end-to-end", "run_id": 36764817135, "status": "verified"},
-    {"milestone": "C003-runtime-parity-engine", "run_id": 36768157558, "status": "verified"},
-    {"milestone": "C003-failure-rollback", "run_id": 36769117578, "status": "verified"}
+    {
+      "milestone": "C002-orchestration",
+      "run_id": 36750536038,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-multi-repository",
+      "run_id": 36751884638,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-process-flow",
+      "run_id": 36753107333,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-diff-impact",
+      "run_id": 36755232124,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-budget",
+      "run_id": 36757285076,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-provider-health",
+      "run_id": 36759816437,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-incremental-cache",
+      "run_id": 36763808082,
+      "status": "verified"
+    },
+    {
+      "milestone": "C002-end-to-end",
+      "run_id": 36764817135,
+      "status": "verified"
+    },
+    {
+      "milestone": "C003-runtime-parity-engine",
+      "run_id": 36768157558,
+      "status": "verified"
+    },
+    {
+      "milestone": "C003-failure-rollback",
+      "run_id": 36769117578,
+      "status": "verified"
+    }
   ],
   "runtime_proofs": [
     {
