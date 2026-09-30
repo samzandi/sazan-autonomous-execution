@@ -26,17 +26,6 @@ BUDGET = _load_module("budget_guard", HERE / "budget_guard.py")
 PROMOTION = _load_module("evaluate_promotion", HERE / "evaluate_promotion.py")
 
 
-REQUIRED_BUDGET_METRICS = {
-    "L0-intake": ["output_bytes", "elapsed_seconds"],
-    "L1-context-packaging": ["context_tokens", "output_bytes", "elapsed_seconds"],
-    "L2-semantic-graph": ["graph_nodes", "output_bytes", "elapsed_seconds"],
-    "L3-architecture-presentation": ["output_bytes", "elapsed_seconds"],
-    "L4-wiki-qa": ["context_tokens", "output_bytes", "elapsed_seconds"],
-    "L5-semantic-editing": ["output_bytes", "elapsed_seconds"],
-    "L6-reverse-engineering": ["output_bytes", "elapsed_seconds"],
-    "L7-promotion": [],
-}
-
 PROVIDERS = {
     "L0-intake": "sazan-intake",
     "L1-context-packaging": "repomix",
