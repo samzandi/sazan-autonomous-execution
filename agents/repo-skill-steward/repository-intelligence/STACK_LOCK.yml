@@ -1,4 +1,4 @@
-version: 19
+version: 20
 verified_at: 2026-09-30
 context: C002
 
@@ -61,7 +61,8 @@ components:
     role: local-to-cross-repository-blast-radius-normalization
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py
     license: repository-license
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36755232124
     properties:
       - codegraph-impact-compatible
       - provider-independent-normalized-schema
