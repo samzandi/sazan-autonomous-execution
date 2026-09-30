@@ -25,7 +25,8 @@ components:
     role: token-graph-output-and-stage-time-budget-enforcement
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/budget_guard.py
     license: repository-license
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36757285076
     properties:
       - strict-fail-closed-mode
       - stage-specific-required-measurements
