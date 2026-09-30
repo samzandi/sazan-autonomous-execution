@@ -1,0 +1,74 @@
+name: Repository Intelligence C003 Failure Rollback Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-c003-failure-rollback-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/C003_FAILURE_ROLLBACK_EVIDENCE.md"
+      - "agents/repo-skill-steward/repository-intelligence/EVIDENCE_PROMOTION_POLICY.md"
+      - "agents/repo-skill-steward/repository-intelligence/scripts/rollback_evidence.py"
+      - "agents/repo-skill-steward/repository-intelligence/scripts/run_c003_failure_rollback_lab.py"
+      - "agents/repo-skill-steward/repository-intelligence/scripts/evaluate_promotion.py"
+      - "tests/test_repository_intelligence_c003_rollback.py"
+      - "tests/test_repository_intelligence_promotion.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  failure-rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Compile rollback tooling
+        run: |
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/rollback_evidence.py
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/run_c003_failure_rollback_lab.py
+
+      - name: Run rollback contract tests
+        run: python3 -m unittest tests/test_repository_intelligence_c003_rollback.py
+
+      - name: Run promotion gate regression tests
+        run: python3 -m unittest tests/test_repository_intelligence_promotion.py
+
+      - name: Execute real failure and rollback transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/run_c003_failure_rollback_lab.py             --output "$RUNNER_TEMP/c003-failure-rollback.json"             --require-verified
+
+          python3 - "$RUNNER_TEMP/c003-failure-rollback.json" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          report = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          assert report["status"] == "verified"
+          assert all(report["checks"].values())
+          assert report["rollback"]["rollback_revision"] == report["rollback"]["final_revision"]
+          assert report["rollback"]["rollback_tree"] == report["rollback"]["final_tree"]
+          assert report["execution"]["failure_exit_code"] != 0
+          assert report["execution"]["post_rollback_exit_code"] == 0
+          assert report["execution"]["parent_workspace_unchanged"] is True
+          PY
+
+      - name: Publish rollback evidence
+        shell: bash
+        run: |
+          {
+            echo "## C003 Failure and Rollback Evidence"
+            echo
+            echo "- Real isolated git worktree transaction executed."
+            echo "- Intentional mutation produced an observed functional failure."
+            echo "- Candidate worktree reset to the verified rollback revision."
+            echo "- Final revision and tree hash exactly matched the rollback point."
+            echo "- Candidate worktree was clean after rollback."
+            echo "- Parent workspace remained unchanged."
+            echo "- Functional validation passed after rollback."
+            echo "- Promotion gate now requires rollback evidence, not status alone."
+          } >> "$GITHUB_STEP_SUMMARY"
