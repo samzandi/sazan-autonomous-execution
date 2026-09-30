@@ -1,4 +1,4 @@
-version: 14
+version: 15
 verified_at: 2026-09-30
 context: C001
 
@@ -242,7 +242,8 @@ components:
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/evaluate_promotion.py
     verifier: agents/repo-skill-steward/repository-intelligence/subagents/verifier/SKILL.md
     license: repository-license
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36748478777
     properties:
       - deterministic
       - no-auto-promotion
