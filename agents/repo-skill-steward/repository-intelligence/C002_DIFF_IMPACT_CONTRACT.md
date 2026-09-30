@@ -2,7 +2,21 @@
 
 Context: C002
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
+
+Verified lab run: 36755232124
+
+Verified:
+- eleven diff-impact contract tests passed;
+- CodeGraph 0.20.1 performed real local impact analysis on the changed API symbol;
+- local semantic evidence was normalized into a cross-repository blast radius;
+- the downstream private worker and impacted end-to-end flow were selected for review;
+- affected local test scope was retained;
+- private absolute/source paths did not leak into persisted impact output;
+- a deliberate event contract version mismatch produced a CRITICAL compatibility finding;
+- local-only helper changes did not expand cross-repository scope without evidence;
+- incomplete semantic mapping remained partial-evidence instead of guessed impact;
+- deterministic output was verified.
 
 ## Purpose
 
