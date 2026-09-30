@@ -6,86 +6,132 @@ Status: LAB VALIDATION
 
 ## Purpose
 
-Turn declared run budgets into machine-enforced limits instead of advisory metadata.
+Turn declared run budgets into machine-enforced limits rather than advisory metadata.
 
-## Guard
+## Primary implementation
 
-Primary implementation:
 `scripts/budget_guard.py`
 
-The guard is evaluated for every stage result before the result is committed to the common evidence envelope.
+The C002 orchestrator evaluates a budget receipt before committing each stage result to the common evidence envelope.
 
-## Recognized stage-local metrics
+## Budget dimensions
 
-- `context_tokens`
-- `graph_nodes`
-- `output_bytes`
-- `elapsed_seconds`
-- `truncated`
+Run-level limits:
+- `max_context_tokens`;
+- `max_graph_nodes`;
+- `max_output_bytes`;
+- `stage_timeout_seconds`.
 
-Unknown metrics are preserved in stage evidence but ignored by the budget engine so existing provider-specific telemetry remains compatible.
+Stage-local metrics:
+- `context_tokens`;
+- `context_token_method`;
+- `graph_nodes`;
+- `output_bytes`;
+- `elapsed_seconds`;
+- `truncated`.
 
-## Budget semantics
+## Production strict mode
 
-### Context tokens
+Production manifests enable:
 
-`max_context_tokens` is cumulative across measured stages.
+```json
+{
+  "budget_policy": {
+    "strict": true,
+    "allow_truncation": false
+  }
+}
+```
 
-Each provider reports only the tokens attributable to that stage result. The guard accumulates them in the run envelope.
+Strict mode is fail-closed.
 
-### Output bytes
+Each stage has a defined set of required measurements:
+- L0 intake: output bytes + elapsed time;
+- L1 context packaging: context tokens + output bytes + elapsed time;
+- L2 semantic graph: graph nodes + output bytes + elapsed time;
+- L3 architecture presentation: output bytes + elapsed time;
+- L4 Wiki/Q&A: context tokens + output bytes + elapsed time;
+- L5 semantic editing: output bytes + elapsed time;
+- L6 reverse engineering: context tokens + output bytes + elapsed time;
+- L7 promotion: internal policy step; no provider-style measurement is required.
 
-`max_output_bytes` is cumulative across measured stages.
+If a required measurement is missing, the stage is blocked.
 
-It represents persistable output produced by Repository Intelligence, not upstream repository size.
+## Token accounting
 
-### Graph nodes
+When `context_tokens` is reported, its counting method is mandatory.
 
-`max_graph_nodes` is a run ceiling on the largest graph-node count reported by a stage.
+Accepted methods:
+- `provider-reported`;
+- `exact-tokenizer`;
+- `utf8-byte-upper-bound`.
 
-The guard stores the maximum rather than summing the same graph across multiple graph consumers.
+The last method is explicitly conservative. The guard never silently invents a token estimate.
 
-### Stage timeout
+Context token usage is cumulative across measured stages.
 
-`stage_timeout_seconds` is checked independently for every stage against `elapsed_seconds`.
+## Output accounting
 
-The guard does not terminate external processes itself. Provider adapters/runners remain responsible for enforcing wall-clock cancellation; the orchestration gate rejects a reported overrun.
+`output_bytes` is cumulative across measured stages.
+
+The guard includes an exact filesystem byte-count helper. Budget enforcement never rewrites, clips, or truncates the source artifact.
+
+## Graph accounting
+
+`graph_nodes` records the maximum graph size observed in the run instead of summing repeated views of the same graph.
+
+This prevents graph consumers from double-counting the same indexed structure.
+
+## Time accounting
+
+`elapsed_seconds` is checked against `stage_timeout_seconds` for each stage.
+
+The guard validates a measured overrun and blocks it. Actual process cancellation remains the responsibility of the provider runner; that execution-control work belongs to the provider health/fallback milestone.
+
+## Truncation
+
+Provider-reported `truncated: true` blocks by default.
+
+An explicit `allow_truncation: true` policy can convert it to an allowed result with constraints, but this is not the production default.
+
+There is no silent truncation path.
 
 ## Decisions
 
-- `allow`
-- `allow-with-constraints`
-- `block`
+- `allow`;
+- `allow-with-constraints`;
+- `block`.
 
-A hard budget violation converts the stage result to `blocked` and stops orchestration.
+A blocked budget receipt converts the stage result to `blocked` and stops orchestration.
 
-A provider-reported `truncated: true` produces `allow-with-constraints` when no hard limit is exceeded.
+## Persisted evidence
 
-## Missing metrics
+Each completed stage stores its budget receipt.
 
-Legacy or provider-specific stage results may omit recognized metrics.
-
-Missing measurements:
-- do not become fabricated zeros in provider evidence;
-- do not block by themselves;
-- are listed as unmeasured by the guard.
-
-This keeps the existing L0–L7 fixtures compatible while new adapters progressively adopt the common metrics.
-
-## Invalid metrics
-
-Negative, boolean-as-number, non-numeric, fractional integer metrics, and non-boolean `truncated` values are rejected.
-
-## Persisted usage
-
-The evidence envelope stores cumulative `budget_usage`:
+The evidence envelope also stores cumulative `budget_usage`:
 - context tokens;
 - maximum graph nodes;
 - output bytes;
-- number of measured stages;
+- measured-stage count;
 - last measured stage duration.
+
+## Legacy compatibility
+
+When `budget_policy.strict` is absent, the default is false.
+
+This preserves historical L0–L7 fixtures while provider adapters are upgraded. New production workflows must opt into strict mode.
+
+## Invalid telemetry
+
+The guard rejects:
+- negative measurements;
+- booleans used as numbers;
+- fractional integer metrics;
+- unsupported token-count methods;
+- non-boolean truncation flags.
 
 ## Promotion boundary
 
-Budget enforcement does not change promotion authority.
-A budget-compliant run can only reach `ready-for-parent-review`; it cannot auto-promote.
+Budget compliance does not change promotion authority.
+
+A budget-compliant run can only become eligible for parent review; it cannot auto-promote.
