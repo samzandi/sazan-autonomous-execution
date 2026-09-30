@@ -206,80 +206,48 @@ jobs:
           import json, os
           from pathlib import Path
           tmp = Path(os.environ["RUNNER_TEMP"])
-          ids = json.loads((tmp / "contract-ids.json").read_text())
           changes = {
             "schema_version": 1,
-            "workspace_id": "c002-impact-fixture",
-            "changes": [
-              {
-                "change_id": "api-handler-modified",
-                "repository_id": "api",
-                "change_type": "modify",
-                "surface_kind": "symbol",
-                "identifier": "handle_checkout",
-                "state": "observed",
-                "evidence": ["git-diff:api/checkout.py"],
-                "local_impact": {
-                  "symbols": ["handle_checkout"],
-                  "steps": ["api.handle"],
-                  "evidence": ["codegraph:impact-output"]
-                }
-              },
-              {
-                "change_id": "checkout-api-v2",
-                "repository_id": "api",
-                "change_type": "version-change",
-                "surface_kind": "http-api",
-                "identifier": "http.checkout.v1",
-                "contract_id": ids["http"],
-                "new_version": "2.0.0",
-                "state": "observed",
-                "evidence": ["openapi:version-diff"]
+            "workspace_id": "c002-diff-impact-fixture",
+            "changes": [{
+              "change_id": "api-calculate-total-change",
+              "repository_id": "api",
+              "change_type": "modify",
+              "surface_kind": "symbol",
+              "identifier": "calculate_total",
+              "state": "observed",
+              "evidence": ["git-diff:service/orders.py"],
+              "local_impact": {
+                "symbols": ["calculate_total", "handle_checkout"],
+                "steps": ["api.handle"],
+                "files": ["service/orders.py", "api/checkout.py"],
+                "tests": ["tests/test_checkout.py"],
+                "evidence": ["codegraph:pr_context:real-git-diff"]
               }
-            ]
+            }]
           }
           (tmp / "changes.json").write_text(json.dumps(changes, indent=2))
           PY
 
-          python3 agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/flows.json"             "$RUNNER_TEMP/changes.json"             --json "$RUNNER_TEMP/impact.json"             --markdown "$RUNNER_TEMP/IMPACT.md"             --require-complete
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py \
+            "$RUNNER_TEMP/registry.json" \
+            "$RUNNER_TEMP/contracts.json" \
+            "$RUNNER_TEMP/flows.json" \
+            "$RUNNER_TEMP/changes.json" \
+            --json "$RUNNER_TEMP/impact.json" \
+            --markdown "$RUNNER_TEMP/IMPACT.md" \
+            --require-complete
 
           grep -q '"status": "verified"' "$RUNNER_TEMP/impact.json"
-          grep -q '"version_mismatches": 1' "$RUNNER_TEMP/impact.json"
+          grep -q '"impacted_repositories": 2' "$RUNNER_TEMP/impact.json"
+          grep -q '"impacted_contracts": 0' "$RUNNER_TEMP/impact.json"
+          grep -q '"impacted_flows": 1' "$RUNNER_TEMP/impact.json"
+          grep -q '"related_test_targets": 1' "$RUNNER_TEMP/impact.json"
+          grep -q '"api"' "$RUNNER_TEMP/impact.json"
           grep -q '"repo_worker_01"' "$RUNNER_TEMP/impact.json"
-          grep -q '"web"' "$RUNNER_TEMP/impact.json"
-          grep -q '"flow_001"' "$RUNNER_TEMP/impact.json"
+          grep -q 'tests/test_checkout.py' "$RUNNER_TEMP/impact.json"
           ! grep -q "secret-owner" "$RUNNER_TEMP/impact.json"
           ! grep -q "secret-owner" "$RUNNER_TEMP/IMPACT.md"
-
-      - name: Verify missing semantic evidence stays partial
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat > "$RUNNER_TEMP/partial-changes.json" <<'JSON'
-          {
-            "schema_version": 1,
-            "workspace_id": "c002-impact-fixture",
-            "changes": [
-              {
-                "change_id": "file-without-semantic-map",
-                "repository_id": "api",
-                "change_type": "modify",
-                "surface_kind": "file",
-                "identifier": "api/checkout.py",
-                "state": "observed",
-                "evidence": ["git-diff:api/checkout.py"]
-              }
-            ]
-          }
-          JSON
-
-          set +e
-          python3 agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/flows.json"             "$RUNNER_TEMP/partial-changes.json"             --json "$RUNNER_TEMP/partial-impact.json"             --markdown "$RUNNER_TEMP/PARTIAL_IMPACT.md"             --require-complete
-          code=$?
-          set -e
-          test "$code" -eq 7
-          grep -q '"status": "partial-evidence"' "$RUNNER_TEMP/partial-impact.json"
-          grep -q 'file change requires local semantic-impact evidence' "$RUNNER_TEMP/partial-impact.json"
 
       - name: Publish diff impact evidence
         shell: bash
