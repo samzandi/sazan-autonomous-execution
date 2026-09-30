@@ -21,6 +21,17 @@ Rules:
 - delegate L7 policy to the verified promotion gate;
 - never auto-promote.
 
+## Multi-repository workspace
+
+When analysis spans more than one repository:
+- build the workspace with `scripts/multi_repo_registry.py`;
+- require stable repository identity before cross-repo reasoning;
+- model contracts as evidence-backed `provides` and `requires` observations;
+- block unresolved internal contracts, ambiguous providers, and incompatible versions;
+- preserve inferred-contract constraints;
+- never persist private/internal repository source names;
+- keep external dependencies external unless evidence shows an internal provider.
+
 ## Required stages
 
 1. Intake
