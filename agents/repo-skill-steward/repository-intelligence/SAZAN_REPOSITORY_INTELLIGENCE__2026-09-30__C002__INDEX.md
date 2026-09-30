@@ -18,7 +18,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - process-flow synthesis — VERIFIED / PROMOTED;
 - diff-impact normalization — VERIFIED / PROMOTED;
 - token and output budgets — VERIFIED / PROMOTED;
-- provider fallback/health controls — IMPLEMENTED, pending lab;
+- provider fallback/health controls — VERIFIED / PROMOTED;
 - incremental state/cache strategy;
 - realistic end-to-end integration lab.
 
@@ -154,4 +154,4 @@ Model:
 - fallback selection is persisted as a receipt and constraint;
 - stages without an equivalent promoted fallback fail closed.
 
-Status: pending C002 provider health/fallback lab.
+Status: VERIFIED — provider health lab run 36759816437; 27 provider-routing/orchestration tests plus explicit fallback and fail-closed validation passed.
