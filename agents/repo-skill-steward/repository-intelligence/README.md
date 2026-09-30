@@ -39,6 +39,7 @@ Turn an external or internal repository into a structured evidence package that 
 - DeepWiki Open: repository wiki and Q&A candidate.
 - Serena 1.7.0: pinned MIT semantic edit/refactor provider behind an isolated process boundary.
 - Sazan rebuild-spec engine: primary evidence-backed clean-room reverse-engineering path.
+- Sazan promotion gate: deterministic final evidence gate; never auto-promotes and always preserves parent steward authority.
 - GitReverse: reference-only; current review found no detected license and its quick flow uses shallow repository evidence.
 - GitNexus: benchmark/reference-only because the current license is non-commercial.
 - ExplainGitHub: service/reference-only until an auditable open-source core and license are identified.
