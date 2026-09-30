@@ -1,4 +1,4 @@
-version: 9
+version: 10
 verified_at: 2026-09-30
 context: C001
 
@@ -157,14 +157,45 @@ components:
       - generation-model-required-for-wiki-and-chat
       - additional-index-cache-lifecycle
 
-  - name: serena
-    role: semantic-editing-adapter
+  - name: serena-1-7
+    role: primary-semantic-editing-candidate
+    repository: oraios/serena
+    pinned_version: 1.7.0
+    pinned_commit: 949a27ef1e5fda1a6e7b561e777bcece345c6ffd
+    license: MIT
+    status: proposed-primary-pending-lab
+    capabilities:
+      - find-symbol
+      - find-referencing-symbols
+      - find-declaration
+      - find-implementations
+      - diagnostics
+      - cross-file-symbol-rename
+      - replace-symbol-body
+      - insert-before-symbol
+      - insert-after-symbol
+      - safe-delete
+      - mcp
+    constraints:
+      - frozen-last-mit-release
+      - language-server-capabilities-vary-by-language
+      - must-be-guarded-by-pre-and-post-verification
+
+  - name: serena-v2
+    role: future-external-semantic-editing-reference
     repository: oraios/serena
     license: GPL-3.0-or-later-for-current-application-code
-    status: external-adapter-only
-    notes:
-      - earlier releases remain under their historical licenses
-      - current main application code must not be vendored into Sazan core without licensing review
+    status: external-reference-only
+    constraints:
+      - do-not-vendor-into-commercial-core-without-license-review
+      - do-not-silently-upgrade-from-mit-adapter
+
+  - name: solidlsp
+    role: future-permissive-semantic-editing-foundation
+    repository: oraios/serena
+    source_path: src/solidlsp
+    license: MIT
+    status: future-sazan-owned-adapter-candidate
 
   - name: gitreverse
     role: synthetic-prompt-reverse-engineering
@@ -218,6 +249,14 @@ wiki_qa_routing:
   graph_first: true
   persistent_vector_index_required_by_default: false
   private_repo_external_default: false
+
+semantic_editing_routing:
+  primary_candidate: serena-1-7
+  pre_post_safety_gate: codegraph
+  future_permissive_foundation: solidlsp
+  current_serena_v2: external-reference-only
+  direct_default_branch_edits: false
+  post_edit_verification_required: true
 
 policy:
   unknown_license: reference-only
