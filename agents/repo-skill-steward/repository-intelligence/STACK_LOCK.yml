@@ -59,7 +59,7 @@ components:
 
   - name: sazan-diff-impact-normalizer
     role: cross-repository-diff-to-impact-normalization
-    implementation: agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalizer.py
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py
     local_diff_provider: codegraph-pr-context
     license: repository-license
     status: proposed-primary-pending-lab
