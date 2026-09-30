@@ -1,0 +1,269 @@
+name: Repository Intelligence C002 Process Flow Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-c002-process-flow-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+      - "tests/test_repository_intelligence_process_flow.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  process-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Compile process flow synthesizer
+        run: python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/process_flow_synthesis.py
+
+      - name: Run process flow tests
+        run: python3 -m unittest tests/test_repository_intelligence_process_flow.py
+
+      - name: Build multi-repository contract graph
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > "$RUNNER_TEMP/workspace.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "workspace_id": "c002-process-fixture",
+            "repositories": [
+              {
+                "repository_id": "web",
+                "visibility": "local-fixture",
+                "source": "fixture/web",
+                "revision": "web-001",
+                "requires": [
+                  {
+                    "key": "http.checkout.v1",
+                    "kind": "http-api",
+                    "version": "1.0.0",
+                    "provider_hint": "api",
+                    "state": "observed",
+                    "evidence": ["web:http-client"]
+                  }
+                ]
+              },
+              {
+                "repository_id": "api",
+                "visibility": "local-fixture",
+                "source": "fixture/api",
+                "revision": "api-001",
+                "provides": [
+                  {
+                    "key": "http.checkout.v1",
+                    "kind": "http-api",
+                    "version": "1.0.0",
+                    "state": "observed",
+                    "evidence": ["api:http-route"]
+                  },
+                  {
+                    "key": "event.order.created",
+                    "kind": "event",
+                    "version": "1.0.0",
+                    "state": "observed",
+                    "evidence": ["api:event-publisher"]
+                  }
+                ]
+              },
+              {
+                "repository_id": "repo_worker_01",
+                "visibility": "private",
+                "source": "secret-owner/private-worker",
+                "revision": "worker-001",
+                "requires": [
+                  {
+                    "key": "event.order.created",
+                    "kind": "event",
+                    "version": "1.0.0",
+                    "provider_hint": "api",
+                    "state": "observed",
+                    "evidence": ["worker:event-consumer"]
+                  }
+                ]
+              }
+            ]
+          }
+          JSON
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/multi_repo_registry.py             "$RUNNER_TEMP/workspace.json"             --registry "$RUNNER_TEMP/registry.json"             --contracts "$RUNNER_TEMP/contracts.json"             --require-no-blockers
+
+      - name: Create evidence-backed process observations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          tmp = Path(os.environ["RUNNER_TEMP"])
+          contracts = json.loads((tmp / "contracts.json").read_text())
+          http_id = next(c["contract_id"] for c in contracts["contracts"] if c["kind"] == "http-api")
+          event_id = next(c["contract_id"] for c in contracts["contracts"] if c["kind"] == "event")
+
+          observations = {
+              "schema_version": 1,
+              "workspace_id": "c002-process-fixture",
+              "budgets": {"max_hops": 16, "max_paths": 20},
+              "steps": [
+                  {
+                      "step_id": "web.submit",
+                      "repository_id": "web",
+                      "label": "Web submit checkout",
+                      "symbol": "submitCheckout",
+                      "kind": "entry",
+                      "entry": True,
+                      "state": "observed",
+                      "evidence": ["web:submit-handler"]
+                  },
+                  {
+                      "step_id": "web.http",
+                      "repository_id": "web",
+                      "label": "Checkout HTTP request",
+                      "symbol": "postCheckout",
+                      "kind": "http-client",
+                      "state": "observed",
+                      "evidence": ["web:call-graph"]
+                  },
+                  {
+                      "step_id": "api.handle",
+                      "repository_id": "api",
+                      "label": "API checkout handler",
+                      "symbol": "handle_checkout",
+                      "kind": "http-handler",
+                      "state": "observed",
+                      "evidence": ["api:route-symbol"]
+                  },
+                  {
+                      "step_id": "api.publish",
+                      "repository_id": "api",
+                      "label": "Publish order.created",
+                      "symbol": "publish_order_created",
+                      "kind": "event-publisher",
+                      "state": "observed",
+                      "evidence": ["api:publisher-symbol"]
+                  },
+                  {
+                      "step_id": "worker.consume",
+                      "repository_id": "repo_worker_01",
+                      "label": "Worker consumes order.created",
+                      "symbol": "consume_order_created",
+                      "kind": "event-consumer",
+                      "state": "observed",
+                      "evidence": ["worker:consumer-symbol"]
+                  },
+                  {
+                      "step_id": "worker.storage",
+                      "repository_id": "repo_worker_01",
+                      "label": "Storage write",
+                      "symbol": "persist_order",
+                      "kind": "storage-write",
+                      "terminal": True,
+                      "state": "observed",
+                      "evidence": ["worker:storage-symbol"]
+                  }
+              ],
+              "edges": [
+                  {
+                      "from": "web.submit",
+                      "to": "web.http",
+                      "relation": "calls",
+                      "state": "observed",
+                      "evidence": ["web:call-graph"]
+                  },
+                  {
+                      "from": "api.handle",
+                      "to": "api.publish",
+                      "relation": "publishes",
+                      "state": "observed",
+                      "evidence": ["api:call-graph"]
+                  },
+                  {
+                      "from": "worker.consume",
+                      "to": "worker.storage",
+                      "relation": "writes",
+                      "state": "observed",
+                      "evidence": ["worker:call-graph"]
+                  }
+              ],
+              "bindings": [
+                  {
+                      "contract_id": http_id,
+                      "provider_step": "api.handle",
+                      "consumer_step": "web.http",
+                      "flow_direction": "consumer-to-provider",
+                      "state": "observed",
+                      "evidence": ["runtime-binding:http"]
+                  },
+                  {
+                      "contract_id": event_id,
+                      "provider_step": "api.publish",
+                      "consumer_step": "worker.consume",
+                      "flow_direction": "provider-to-consumer",
+                      "state": "observed",
+                      "evidence": ["runtime-binding:event"]
+                  }
+              ]
+          }
+          (tmp / "observations.json").write_text(json.dumps(observations, indent=2))
+          PY
+
+      - name: Synthesize end-to-end flow
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/process_flow_synthesis.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/observations.json"             --json "$RUNNER_TEMP/process-flows.json"             --markdown "$RUNNER_TEMP/PROCESS_FLOWS.md"             --require-flow
+
+          grep -q '"status": "verified"' "$RUNNER_TEMP/process-flows.json"
+          grep -q '"flows": 1' "$RUNNER_TEMP/process-flows.json"
+          grep -q '"observed_flows": 1' "$RUNNER_TEMP/process-flows.json"
+          grep -q '"cross_repository_edges": 2' "$RUNNER_TEMP/process-flows.json"
+          grep -q 'Web submit checkout' "$RUNNER_TEMP/PROCESS_FLOWS.md"
+          grep -q 'API checkout handler' "$RUNNER_TEMP/PROCESS_FLOWS.md"
+          grep -q 'Publish order.created' "$RUNNER_TEMP/PROCESS_FLOWS.md"
+          grep -q 'Worker consumes order.created' "$RUNNER_TEMP/PROCESS_FLOWS.md"
+          grep -q 'Storage write' "$RUNNER_TEMP/PROCESS_FLOWS.md"
+          ! grep -q "secret-owner" "$RUNNER_TEMP/process-flows.json"
+          ! grep -q "secret-owner" "$RUNNER_TEMP/PROCESS_FLOWS.md"
+
+      - name: Verify inferred binding downgrades flow
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path(os.environ["RUNNER_TEMP"]) / "observations.json"
+          data = json.loads(p.read_text())
+          data["bindings"][1]["state"] = "inferred"
+          data["bindings"][1]["rationale"] = "Event publisher/consumer evidence implies this delivery hop."
+          (Path(os.environ["RUNNER_TEMP"]) / "observations-inferred.json").write_text(json.dumps(data))
+          PY
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/process_flow_synthesis.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/observations-inferred.json"             --json "$RUNNER_TEMP/process-flows-inferred.json"             --markdown "$RUNNER_TEMP/PROCESS_FLOWS_INFERRED.md"             --require-flow
+
+          grep -q '"inferred_flows": 1' "$RUNNER_TEMP/process-flows-inferred.json"
+          grep -q 'end-to-end flow contains inferred evidence' "$RUNNER_TEMP/process-flows-inferred.json"
+
+      - name: Publish process flow evidence
+        shell: bash
+        run: |
+          {
+            echo "## C002 Process / Execution Flow Lab"
+            echo
+            echo "- Web → API → event → private worker → storage was reconstructed."
+            echo "- Two repository boundaries were crossed only through matched contracts."
+            echo "- All hops retained evidence references."
+            echo "- Private repository source identity did not appear in persisted flow output."
+            echo "- An inferred event binding downgraded the complete flow to inferred."
+          } >> "$GITHUB_STEP_SUMMARY"
