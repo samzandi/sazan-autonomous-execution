@@ -89,8 +89,8 @@ def evaluate(package: dict[str, Any]) -> dict[str, Any]:
     license_status = str(license_check.get("status", "")).strip()
     if license_status == "incompatible":
         blockers.append("license is incompatible")
-    if license_status == "noncommercial" and mode in {"embedded-core", "internal-component"}:
-        blockers.append("non-commercial license cannot be embedded in Sazan commercial core")
+    if license_status == "noncommercial" and mode != "reference-only":
+        blockers.append("non-commercial license is restricted to reference-only use")
     if security.get("status") == "failed":
         blockers.append("security review failed")
     if lab.get("status") == "failed":
@@ -107,8 +107,15 @@ def evaluate(package: dict[str, Any]) -> dict[str, Any]:
     # Required evidence/pending rules.
     if provenance.get("status") != "verified" or not _has_evidence(provenance):
         pending.append("canonical provenance is not fully verified")
-    if license_status in {"", "unknown", "pending"} or not _has_evidence(license_check):
+    if not _has_evidence(license_check):
         pending.append("license evidence is incomplete")
+    elif license_status in {"", "pending"}:
+        pending.append("license evidence is incomplete")
+    elif license_status == "unknown":
+        if mode == "reference-only":
+            constraints.append("license unknown: reference-only; no code copying, vendoring, or execution")
+        else:
+            pending.append("unknown license permits reference-only use until clarified")
     if security.get("status") not in {"passed", "passed-with-constraints"} or not _has_evidence(security):
         if security.get("status") != "failed":
             pending.append("security review evidence is incomplete")
