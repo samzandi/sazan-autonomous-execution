@@ -35,7 +35,8 @@ Use when a repository must be evaluated, reverse engineered, compared, documente
 5. Semantic editing
    - Use CodeGraph impact evidence before high-connectivity edits.
    - Prefer symbol-aware rename/edit/delete over regex-based identifier surgery.
-   - Current primary candidate is pinned Serena 1.7.0 (MIT), never an unpinned Serena install.
+   - Primary provider is pinned Serena 1.7.0 (MIT), never an unpinned Serena install.
+   - Run Serena through an isolated MCP/subprocess boundary; do not embed its headless application runtime in the primary Sazan process.
    - Keep current Serena v2 GPL application code outside the Sazan commercial core unless separately approved.
    - Re-run diagnostics/tests and CodeGraph verification after edits.
    - Never perform semantic edits directly on the protected default branch.
