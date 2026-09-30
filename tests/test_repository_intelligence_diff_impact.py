@@ -17,7 +17,7 @@ def load(name, filename):
 
 REG = load("multi_repo_registry", "multi_repo_registry.py")
 FLOW = load("process_flow_synthesis", "process_flow_synthesis.py")
-IMPACT = load("diff_impact_normalizer", "diff_impact_normalizer.py")
+IMPACT = load("diff_impact_normalize", "diff_impact_normalize.py")
 
 
 def workspace():
@@ -87,12 +87,12 @@ def fixture():
         "schema_version": 1,
         "workspace_id": "impact-fixture",
         "steps": [
-            {"step_id": "web.submit", "repository_id": "web", "label": "Web submit", "kind": "entry", "entry": True, "state": "observed", "evidence": ["web:submit"]},
-            {"step_id": "web.http", "repository_id": "web", "label": "HTTP client", "kind": "http-client", "state": "observed", "evidence": ["web:http"]},
-            {"step_id": "api.handle", "repository_id": "api", "label": "Checkout handler", "kind": "http-handler", "state": "observed", "evidence": ["api:handler"]},
-            {"step_id": "api.publish", "repository_id": "api", "label": "Publish event", "kind": "event-publisher", "state": "observed", "evidence": ["api:publish"]},
-            {"step_id": "worker.consume", "repository_id": "repo_worker_01", "label": "Consume event", "kind": "event-consumer", "state": "observed", "evidence": ["worker:consume"]},
-            {"step_id": "worker.store", "repository_id": "repo_worker_01", "label": "Store order", "kind": "storage-write", "terminal": True, "state": "observed", "evidence": ["worker:store"]},
+            {"step_id": "web.submit", "repository_id": "web", "label": "Web submit", "symbol": "submitCheckout", "kind": "entry", "entry": True, "state": "observed", "evidence": ["web:submit"]},
+            {"step_id": "web.http", "repository_id": "web", "label": "HTTP client", "symbol": "postCheckout", "kind": "http-client", "state": "observed", "evidence": ["web:http"]},
+            {"step_id": "api.handle", "repository_id": "api", "label": "Checkout handler", "symbol": "handle_checkout", "kind": "http-handler", "state": "observed", "evidence": ["api:handler"]},
+            {"step_id": "api.publish", "repository_id": "api", "label": "Publish event", "symbol": "publish_order_created", "kind": "event-publisher", "state": "observed", "evidence": ["api:publish"]},
+            {"step_id": "worker.consume", "repository_id": "repo_worker_01", "label": "Consume event", "symbol": "consume_order_created", "kind": "event-consumer", "state": "observed", "evidence": ["worker:consume"]},
+            {"step_id": "worker.store", "repository_id": "repo_worker_01", "label": "Store order", "symbol": "persist_order", "kind": "storage-write", "terminal": True, "state": "observed", "evidence": ["worker:store"]},
         ],
         "edges": [
             {"from": "web.submit", "to": "web.http", "relation": "calls", "state": "observed", "evidence": ["web:call"]},
@@ -108,159 +108,182 @@ def fixture():
     return registry, contracts, flows, http_id, event_id
 
 
-def signature_change(http_id):
+def symbol_change():
     return {
         "schema_version": 1,
         "workspace_id": "impact-fixture",
         "changes": [{
-            "change_id": "api-calculate-total-signature",
+            "change_id": "api-handler-body",
             "repository_id": "api",
-            "change_type": "signature",
-            "path": "service/orders.py",
-            "symbol": "calculate_total",
+            "change_type": "modify",
+            "surface_kind": "symbol",
+            "identifier": "handle_checkout",
             "state": "observed",
-            "evidence": ["codegraph:pr-context"],
+            "evidence": ["git-diff:api/checkout.py"],
             "local_impact": {
-                "risk": "medium",
-                "symbols": ["calculate_total", "handle_checkout"],
-                "files": ["service/orders.py", "api/checkout.py"],
-                "tests": ["tests/test_checkout.py"],
+                "symbols": ["handle_checkout"],
+                "steps": ["api.handle"],
+                "evidence": ["codegraph:impact:handle_checkout"],
             },
-            "touched_steps": ["api.handle"],
-            "contract_touches": [{
-                "contract_id": http_id,
-                "side": "provider",
-                "state": "observed",
-                "evidence": ["api:route-contract"],
-            }],
         }],
     }
 
 
 class DiffImpactTests(unittest.TestCase):
-    def test_provider_signature_change_propagates_cross_repo(self):
-        registry, contracts, flows, http_id, _event_id = fixture()
-        report = IMPACT.normalize(registry, contracts, flows, signature_change(http_id))
+    def test_symbol_change_propagates_downstream_not_upstream(self):
+        registry, contracts, flows, _http_id, _event_id = fixture()
+        report = IMPACT.normalize(registry, contracts, flows, symbol_change())
         self.assertEqual(report["status"], "verified")
-        self.assertEqual(report["risk_level"], "high")
-        repos = {x["repository_id"] for x in report["affected_repositories"]}
-        self.assertEqual(repos, {"web", "api", "repo_worker_01"})
-        self.assertEqual(report["summary"]["affected_contracts"], 1)
-        self.assertEqual(report["summary"]["affected_flows"], 1)
-        self.assertIn("tests/test_checkout.py", report["test_targets"])
+        self.assertEqual(report["blast_radius"]["repositories"], ["api", "repo_worker_01"])
+        self.assertEqual(report["blast_radius"]["flows"], ["flow_001"])
+        self.assertNotIn("web", report["blast_radius"]["repositories"])
 
-    def test_body_only_step_change_does_not_mark_upsteam_consumer(self):
+    def test_http_contract_change_reaches_both_parties_and_downstream(self):
+        registry, contracts, flows, http_id, _event_id = fixture()
+        changes = {
+            "schema_version": 1,
+            "workspace_id": "impact-fixture",
+            "changes": [{
+                "change_id": "checkout-contract-change",
+                "repository_id": "api",
+                "change_type": "modify",
+                "surface_kind": "http-api",
+                "identifier": "http.checkout.v1",
+                "contract_id": http_id,
+                "state": "observed",
+                "evidence": ["api:openapi-diff"],
+            }],
+        }
+        report = IMPACT.normalize(registry, contracts, flows, changes)
+        self.assertEqual(report["status"], "verified")
+        self.assertEqual(report["blast_radius"]["repositories"], ["api", "repo_worker_01", "web"])
+        self.assertEqual(report["blast_radius"]["contracts"], [http_id])
+        self.assertEqual(report["blast_radius"]["flows"], ["flow_001"])
+
+    def test_contract_version_change_reports_mismatch(self):
+        registry, contracts, flows, http_id, _event_id = fixture()
+        changes = {
+            "schema_version": 1,
+            "workspace_id": "impact-fixture",
+            "changes": [{
+                "change_id": "checkout-v2",
+                "repository_id": "api",
+                "change_type": "version-change",
+                "surface_kind": "http-api",
+                "identifier": "http.checkout.v1",
+                "contract_id": http_id,
+                "new_version": "2.0.0",
+                "state": "observed",
+                "evidence": ["api:openapi-version-diff"],
+            }],
+        }
+        report = IMPACT.normalize(registry, contracts, flows, changes)
+        self.assertEqual(report["compatibility_findings"]["version_mismatch_changes"], ["checkout-v2"])
+        self.assertEqual(report["summary"]["version_mismatches"], 1)
+
+    def test_file_change_without_semantic_evidence_is_partial(self):
         registry, contracts, flows, _http_id, _event_id = fixture()
         changes = {
             "schema_version": 1,
             "workspace_id": "impact-fixture",
             "changes": [{
-                "change_id": "api-handler-body",
+                "change_id": "file-only",
                 "repository_id": "api",
-                "change_type": "body",
+                "change_type": "modify",
+                "surface_kind": "file",
+                "identifier": "api/checkout.py",
                 "state": "observed",
-                "evidence": ["codegraph:pr-context"],
-                "local_impact": {"risk": "low", "symbols": ["handle_checkout"], "files": ["api/checkout.py"], "tests": []},
-                "touched_steps": ["api.handle"],
-                "contract_touches": [],
+                "evidence": ["git-diff:api/checkout.py"],
             }],
         }
         report = IMPACT.normalize(registry, contracts, flows, changes)
-        repos = {x["repository_id"] for x in report["affected_repositories"]}
-        self.assertEqual(repos, {"api", "repo_worker_01"})
-        self.assertNotIn("web", repos)
-        self.assertEqual(report["risk_level"], "medium")
+        self.assertEqual(report["status"], "partial-evidence")
+        self.assertGreaterEqual(report["summary"]["incomplete_evidence"], 1)
 
-    def test_event_contract_change_is_high_and_reaches_worker(self):
-        registry, contracts, flows, _http_id, event_id = fixture()
+    def test_unmapped_symbol_is_partial(self):
+        registry, contracts, flows, _http_id, _event_id = fixture()
         changes = {
             "schema_version": 1,
             "workspace_id": "impact-fixture",
             "changes": [{
-                "change_id": "event-shape",
+                "change_id": "unmapped-symbol",
                 "repository_id": "api",
-                "change_type": "event",
+                "change_type": "modify",
+                "surface_kind": "symbol",
+                "identifier": "unknown_symbol",
                 "state": "observed",
-                "evidence": ["api:event-diff"],
-                "local_impact": {"risk": "medium", "symbols": ["publish_order_created"], "files": ["events.py"], "tests": ["tests/test_events.py"]},
-                "touched_steps": ["api.publish"],
-                "contract_touches": [{
-                    "contract_id": event_id,
-                    "side": "provider",
-                    "state": "observed",
-                    "evidence": ["api:event-contract"],
-                }],
+                "evidence": ["git-diff:unknown"],
+                "local_impact": {"evidence": ["codegraph:no-match"]},
             }],
         }
         report = IMPACT.normalize(registry, contracts, flows, changes)
-        worker = next(r for r in report["affected_repositories"] if r["repository_id"] == "repo_worker_01")
-        self.assertEqual(worker["risk"], "high")
-        self.assertEqual(report["risk_level"], "high")
+        self.assertEqual(report["status"], "partial-evidence")
+        self.assertEqual(report["changes"][0]["mapping_status"], "unmapped")
 
-    def test_consumer_contract_change_marks_provider_for_review(self):
-        registry, contracts, flows, http_id, _event_id = fixture()
-        changes = {
-            "schema_version": 1,
-            "workspace_id": "impact-fixture",
-            "changes": [{
-                "change_id": "web-client-contract",
-                "repository_id": "web",
-                "change_type": "contract",
-                "state": "observed",
-                "evidence": ["web:client-diff"],
-                "local_impact": {"risk": "medium", "symbols": ["postCheckout"], "files": ["checkout.ts"], "tests": []},
-                "touched_steps": ["web.http"],
-                "contract_touches": [{
-                    "contract_id": http_id,
-                    "side": "consumer",
-                    "state": "observed",
-                    "evidence": ["web:http-contract"],
-                }],
-            }],
-        }
-        report = IMPACT.normalize(registry, contracts, flows, changes)
-        api = next(r for r in report["affected_repositories"] if r["repository_id"] == "api")
-        self.assertTrue(any("counterparty review" in x for x in api["reasons"]))
-
-    def test_inferred_mapping_propagates_constraint(self):
-        registry, contracts, flows, http_id, _event_id = fixture()
-        data = signature_change(http_id)
+    def test_inferred_change_propagates_constraint(self):
+        registry, contracts, flows, _http_id, _event_id = fixture()
+        data = symbol_change()
         data["changes"][0]["state"] = "inferred"
-        data["changes"][0]["rationale"] = "Diff hunk overlaps the route symbol but exact AST mapping is unavailable."
+        data["changes"][0]["rationale"] = "Diff hunk overlaps the handler but exact semantic mapping is incomplete."
         report = IMPACT.normalize(registry, contracts, flows, data)
-        self.assertTrue(report["constraints"])
-        self.assertTrue(any(r["state"] == "inferred" for r in report["affected_repositories"]))
+        self.assertIn("change observation is inferred", report["changes"][0]["constraints"])
 
-    def test_unknown_contract_is_rejected(self):
+    def test_contract_kind_mismatch_is_rejected(self):
         registry, contracts, flows, http_id, _event_id = fixture()
-        data = signature_change(http_id)
-        data["changes"][0]["contract_touches"][0]["contract_id"] = "missing"
-        with self.assertRaisesRegex(ValueError, "unknown or unmatched contract_id"):
+        changes = {
+            "schema_version": 1,
+            "workspace_id": "impact-fixture",
+            "changes": [{
+                "change_id": "bad-kind",
+                "repository_id": "api",
+                "change_type": "modify",
+                "surface_kind": "event",
+                "identifier": "wrong",
+                "contract_id": http_id,
+                "state": "observed",
+                "evidence": ["diff"],
+            }],
+        }
+        with self.assertRaisesRegex(ValueError, "does not match contract kind"):
+            IMPACT.normalize(registry, contracts, flows, changes)
+
+    def test_local_step_must_belong_to_changed_repository(self):
+        registry, contracts, flows, _http_id, _event_id = fixture()
+        data = symbol_change()
+        data["changes"][0]["local_impact"]["steps"] = ["web.http"]
+        with self.assertRaisesRegex(ValueError, "different repository"):
             IMPACT.normalize(registry, contracts, flows, data)
 
-    def test_step_must_belong_to_changed_repo(self):
+    def test_review_scope_contains_repository_flow_and_contract(self):
         registry, contracts, flows, http_id, _event_id = fixture()
-        data = signature_change(http_id)
-        data["changes"][0]["touched_steps"] = ["web.http"]
-        with self.assertRaisesRegex(ValueError, "belongs to another repository"):
-            IMPACT.normalize(registry, contracts, flows, data)
-
-    def test_workspace_mismatch_is_rejected(self):
-        registry, contracts, flows, http_id, _event_id = fixture()
-        data = signature_change(http_id)
-        data["workspace_id"] = "other"
-        with self.assertRaisesRegex(ValueError, "workspace_id mismatch"):
-            IMPACT.normalize(registry, contracts, flows, data)
+        changes = {
+            "schema_version": 1,
+            "workspace_id": "impact-fixture",
+            "changes": [{
+                "change_id": "checkout-contract-change",
+                "repository_id": "api",
+                "change_type": "modify",
+                "surface_kind": "http-api",
+                "identifier": "http.checkout.v1",
+                "contract_id": http_id,
+                "state": "observed",
+                "evidence": ["api:openapi-diff"],
+            }],
+        }
+        report = IMPACT.normalize(registry, contracts, flows, changes)
+        self.assertTrue(any(x.get("repository_id") == "web" for x in report["test_review_scope"]))
+        self.assertTrue(any(x.get("contract_id") == http_id for x in report["test_review_scope"]))
+        self.assertTrue(any(x.get("flow_id") == "flow_001" for x in report["test_review_scope"]))
 
     def test_private_source_is_not_present(self):
-        registry, contracts, flows, http_id, _event_id = fixture()
-        report = IMPACT.normalize(registry, contracts, flows, signature_change(http_id))
+        registry, contracts, flows, _http_id, _event_id = fixture()
+        report = IMPACT.normalize(registry, contracts, flows, symbol_change())
         self.assertNotIn("secret-owner", json.dumps(report, sort_keys=True))
 
     def test_output_is_deterministic(self):
-        registry, contracts, flows, http_id, _event_id = fixture()
-        one = IMPACT.normalize(registry, contracts, flows, signature_change(http_id))
-        two = IMPACT.normalize(registry, contracts, flows, signature_change(http_id))
+        registry, contracts, flows, _http_id, _event_id = fixture()
+        one = IMPACT.normalize(registry, contracts, flows, symbol_change())
+        two = IMPACT.normalize(registry, contracts, flows, symbol_change())
         self.assertEqual(one, two)
         self.assertEqual(IMPACT.render_markdown(one), IMPACT.render_markdown(two))
 
