@@ -47,14 +47,15 @@ For cross-repository runtime analysis:
 ## Diff → impact
 
 For change-impact analysis:
-- use CodeGraph semantic-impact evidence for changed files/symbols;
+- use CodeGraph 0.20.1 `codegraph_pr_context` for branch-diff context;
+- use `codegraph_analyze_impact` for focused symbol-level mapping;
 - normalize with `scripts/diff_impact_normalize.py`;
-- map changed symbols explicitly to process steps;
-- bind API/event/schema/package changes to matched contract IDs;
-- propagate contract changes to both participants and downstream verified flows;
-- compare version changes with recorded consumer requirements;
-- keep unmapped file/symbol changes in `partial-evidence`;
-- emit factual repository/contract/flow review scope rather than speculative numeric risk scores;
+- map file/symbol changes to semantic symbols or process steps before claiming downstream impact;
+- bind API/event/schema/package changes to a concrete matched contract;
+- propagate impact through verified process flows;
+- report version mismatches as compatibility findings, not proven runtime failures;
+- preserve `partial-evidence` when mappings are incomplete;
+- emit factual repository/contract/flow test-review scope rather than speculative numeric risk scores;
 - never include private repository source names in impact artifacts.
 
 ## Required stages
