@@ -1,4 +1,4 @@
-version: 16
+version: 17
 verified_at: 2026-09-30
 context: C002
 
@@ -20,6 +20,23 @@ components:
       - delegates-l7-to-verified-promotion-gate
       - no-auto-promotion
       - parent-review-required
+
+  - name: sazan-multi-repo-registry
+    role: workspace-repository-registry-and-cross-repo-contract-graph
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/multi_repo_registry.py
+    license: repository-license
+    status: proposed-primary-pending-lab
+    properties:
+      - stable-repository-identity
+      - private-source-redaction
+      - evidence-backed-provides-requires-model
+      - http-api-event-schema-package-cli-storage-custom-contracts
+      - upstream-downstream-topology
+      - exact-or-wildcard-baseline-version-compatibility
+      - unresolved-contract-blockers
+      - ambiguous-provider-blockers
+      - version-mismatch-blockers
+      - external-requirements-not-forced-internal
 
   - name: repomix
     role: primary-context-packer
@@ -390,3 +407,19 @@ orchestration_routing:
   private_identity_persistence: false
   auto_promote: false
   final_authority: parent-repo-skill-steward
+
+multi_repo_routing:
+  primary: sazan-multi-repo-registry
+  context: C002
+  private_repository_identity:
+    persisted_source: false
+    stable_opaque_id_required: true
+  contract_states:
+    - observed
+    - inferred
+  internal_contract_blockers:
+    - unresolved-contract
+    - ambiguous-provider
+    - version-mismatch
+    - self-contract-not-cross-repository
+  external_requirements_may_remain_external: true
