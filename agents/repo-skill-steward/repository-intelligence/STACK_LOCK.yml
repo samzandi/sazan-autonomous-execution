@@ -45,7 +45,8 @@ components:
     role: evidence-backed-provider-health-and-fallback-routing
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/provider_health.py
     license: repository-license
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36759816437
     properties:
       - health-evidence-required
       - health-and-stage-eligibility-separated
