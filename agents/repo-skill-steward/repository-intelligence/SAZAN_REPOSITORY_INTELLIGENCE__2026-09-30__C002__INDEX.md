@@ -19,7 +19,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - diff-impact normalization — VERIFIED / PROMOTED;
 - token and output budgets — VERIFIED / PROMOTED;
 - provider fallback/health controls — VERIFIED / PROMOTED;
-- incremental state/cache strategy;
+- incremental state/cache strategy — VERIFIED / PROMOTED;
 - realistic end-to-end integration lab.
 
 ## Milestone 1 — Single-repository orchestration
@@ -155,3 +155,24 @@ Model:
 - stages without an equivalent promoted fallback fail closed.
 
 Status: VERIFIED — provider health lab run 36759816437; 27 provider-routing/orchestration tests plus explicit fallback and fail-closed validation passed.
+
+
+## Milestone 7 — Incremental state and cache strategy
+
+Implementation:
+- `scripts/incremental_cache.py`;
+- `C002_INCREMENTAL_CACHE_CONTRACT.md`;
+- incremental-cache unit tests;
+- cross-revision invalidation lab.
+
+Model:
+- cache identity is based on semantic stage inputs rather than branch names or timestamps;
+- source revision is preserved as provenance but is not automatically a cache invalidator;
+- cross-revision reuse is allowed only when stage input, provider/version/contract, policy, implementation, and dependency fingerprints are unchanged;
+- same-revision-only mode is available for volatile or mutating stages;
+- upstream dependency changes invalidate downstream cache entries;
+- cache-key integrity and result fingerprints are mandatory;
+- private repository source names are not required by cache metadata;
+- cache hits never bypass provider health, budgets, license/security, verifier, or parent promotion gates.
+
+Status: VERIFIED — incremental-cache lab run 36763808082; 19 contract tests plus cross-revision hit/invalidation validation passed.

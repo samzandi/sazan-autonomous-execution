@@ -83,6 +83,21 @@ For production runs:
 - persist fallback receipts and constraints;
 - fail closed when no equivalent promoted provider is healthy.
 
+## Incremental state and cache
+
+For reusable analysis state:
+- use `scripts/incremental_cache.py`;
+- fingerprint the real stage inputs, not the branch name or timestamp;
+- keep repository revision as provenance;
+- allow cross-revision reuse only when semantic input fingerprints are unchanged;
+- include provider version and capability contract in cache identity;
+- include current policy and implementation fingerprints;
+- chain downstream cache identity to the upstream artifact/receipt fingerprints actually consumed;
+- use same-revision-only for mutating or volatile stages;
+- verify cached result/artifact fingerprints before reuse;
+- never let a cache hit bypass provider health, budget, license/security, verifier, or promotion gates;
+- never persist private repository source names in shared cache metadata.
+
 ## Required stages
 
 1. Intake

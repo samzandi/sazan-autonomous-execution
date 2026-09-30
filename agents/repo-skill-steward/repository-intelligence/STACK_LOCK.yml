@@ -1,4 +1,4 @@
-version: 23
+version: 24
 verified_at: 2026-09-30
 context: C002
 
@@ -58,6 +58,26 @@ components:
       - no-silent-fallback
       - fail-closed-when-no-equivalent-provider
       - deterministic-routing
+
+  - name: sazan-incremental-cache
+    role: evidence-backed-incremental-stage-cache
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/incremental_cache.py
+    license: repository-license
+    status: promoted-primary
+    lab_run_id: 36763808082
+    properties:
+      - semantic-stage-input-fingerprints
+      - revision-is-provenance-not-default-key
+      - safe-cross-revision-reuse
+      - same-revision-only-policy
+      - provider-version-contract-invalidation
+      - policy-fingerprint-invalidation
+      - implementation-fingerprint-invalidation
+      - dependency-chain-invalidation
+      - cache-key-integrity-check
+      - result-fingerprint-required
+      - privacy-safe-repository-ids
+      - deterministic-receipts
 
   - name: sazan-multi-repo-registry
     role: workspace-repository-registry-and-cross-repo-contract-graph
@@ -575,3 +595,26 @@ provider_health_routing:
   unhealthy_primary_without_equivalent_fallback: blocked
   private_target_requires_private_safe_provider: true
   silent_fallback: forbidden
+
+incremental_cache_routing:
+  primary: sazan-incremental-cache
+  context: C002
+  default_reuse_policy: fingerprint-stable-cross-revision
+  semantic_identity:
+    - repository-id
+    - stage
+    - provider
+    - provider-version
+    - provider-contract
+    - stage-input-fingerprint
+    - policy-fingerprint
+    - implementation-fingerprint
+    - dependency-fingerprints
+  revision_role: provenance
+  cache_hit_does_not_bypass:
+    - provider-health
+    - budget-policy
+    - license-security
+    - verifier
+    - parent-promotion-gate
+  private_source_identity_persisted: false
