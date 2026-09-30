@@ -1,4 +1,4 @@
-version: 6
+version: 7
 verified_at: 2026-09-30
 context: C001
 
@@ -100,7 +100,8 @@ components:
     role: primary-architecture-presentation
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/render_architecture_mermaid.py
     license: repository-license
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36742665729
     properties:
       - deterministic
       - stdlib-python-only
