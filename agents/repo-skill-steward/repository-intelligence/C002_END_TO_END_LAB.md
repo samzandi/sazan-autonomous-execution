@@ -2,7 +2,7 @@
 
 Context: C002
 Date: 2026-09-30
-Status: CANDIDATE
+Status: VERIFIED / PROMOTED
 
 ## Goal
 
@@ -50,4 +50,4 @@ The persisted outputs must not reveal the private repository source identity.
 - auto-promotion remains false;
 - no private source identity leaks.
 
-Status remains CANDIDATE until the pull-request workflow passes.
+Status: VERIFIED — pull-request lab run 36764817135 passed the dedicated end-to-end tests, the C002 regression suite, the executable lab assertions, and the privacy-redaction checks.
