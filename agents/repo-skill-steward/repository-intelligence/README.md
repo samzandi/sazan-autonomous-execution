@@ -22,7 +22,7 @@ C002 adds `scripts/process_flow_synthesis.py` to reconstruct bounded, evidence-b
 
 ## Diff → impact layer
 
-C002 adds `scripts/diff_impact_normalize.py` to combine local semantic change impact with cross-repository contracts and execution flows. The output is a normalized blast radius covering affected files, tests, steps, contracts, flows, and repositories, while preserving private-path redaction.
+C002 uses `scripts/diff_impact_normalizer.py` to combine provider-backed local semantic evidence with cross-repository contracts and execution flows. It preserves local provider risk and related tests, keeps observed/inferred confidence separate, and expands only evidence-backed blast radius while preserving private-path redaction.
 
 ## Operating pipeline
 

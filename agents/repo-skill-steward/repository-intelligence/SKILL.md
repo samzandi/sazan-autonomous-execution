@@ -47,14 +47,17 @@ For cross-repository runtime analysis:
 ## Diff → impact
 
 When reviewing a change set:
-- run local semantic impact analysis first, preferably with CodeGraph;
-- normalize the change with `scripts/diff_impact_normalize.py`;
-- preserve affected files, symbols, and tests from the local provider;
-- explicitly attach changed contract IDs when an API/event/schema/package surface is affected;
+- collect local semantic/diff evidence first, preferably with CodeGraph `pr_context` or impact tools;
+- normalize the change with `scripts/diff_impact_normalizer.py`;
+- preserve provider-reported local risk, affected files/symbols, direct callers, and related tests;
+- keep local risk, evidence confidence, and blast radius as separate dimensions;
+- use explicit evidence-backed `contract_touches` before local code impact crosses repository boundaries;
+- validate provider/consumer contract side ownership;
 - propagate impact only through verified process steps and matched contract edges;
-- select downstream repositories and end-to-end flows for review;
-- treat version mismatch as a compatibility finding;
-- never infer file-level blast radius from filenames alone;
+- select factual downstream repositories and end-to-end flows for review;
+- treat version mismatch as a compatibility finding, not proof of runtime failure;
+- never synthesize a global risk score from change type, filename count, or repository count;
+- downgrade file/symbol changes without semantic evidence to `partial-evidence`;
 - redact private absolute paths before persistence.
 
 ## Required stages

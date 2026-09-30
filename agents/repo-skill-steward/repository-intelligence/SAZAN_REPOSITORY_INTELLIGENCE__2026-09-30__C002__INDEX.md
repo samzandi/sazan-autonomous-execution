@@ -93,19 +93,18 @@ Status: VERIFIED — process-flow lab run 36753107333; 11 contract tests plus en
 ## Milestone 4 — Diff → Impact normalization
 
 Implementation:
-- `scripts/diff_impact_normalize.py`;
+- `scripts/diff_impact_normalizer.py`;
 - `C002_DIFF_IMPACT_CONTRACT.md`;
-- diff-impact unit tests;
-- CodeGraph-backed cross-repository integration lab.
+- evidence-first diff-impact unit tests;
+- real-git-diff + CodeGraph `pr_context` cross-repository integration lab.
 
-Model:
-- local semantic impact is collected from CodeGraph or another normalized provider;
-- local file/symbol/test impact is preserved;
-- explicit changed contract IDs propagate review to provider/consumer repositories;
-- changed process steps and contract edges propagate into downstream end-to-end flows;
-- affected tests, contracts, flows, steps, files, and repositories form a unified blast radius;
-- private absolute paths are converted to relative or opaque persistable paths;
-- contract version mismatches become explicit compatibility findings;
-- missing semantic mapping remains partial-evidence rather than guessed impact.
+Hardening model:
+- preserve local risk and related-test evidence from CodeGraph instead of recomputing a global risk;
+- keep evidence confidence separate as observed/inferred;
+- require explicit evidence-backed contract touches before local code impact crosses repository boundaries;
+- propagate factual blast radius through verified process flows;
+- compare provider/consumer version changes against the correct counterparty version;
+- keep private path redaction;
+- downgrade incomplete file/symbol evidence to partial-evidence.
 
-Status: VERIFIED — diff-impact lab run 36755232124; 11 contract tests plus real CodeGraph cross-repository propagation validation passed.
+Status: REVALIDATION — previous lab 36755232124 remains historical evidence until the evidence-first lab passes.
