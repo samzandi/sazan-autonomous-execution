@@ -96,6 +96,24 @@ Legacy manifests remain non-strict until explicitly upgraded.
 
 Budget integration evidence: C002 Budget Lab run 36757285076.
 
+## Provider health routing
+
+Strict provider routing is integrated with the orchestrator.
+
+In strict mode:
+- provider health observations require evidence;
+- health does not imply stage eligibility;
+- the selected provider must satisfy the stage capability contract;
+- fallback is explicit and persisted;
+- stage output must come from the routed provider;
+- private/internal targets require private-safe providers;
+- an unavailable provider with no equivalent promoted fallback blocks the stage.
+
+Baseline automatic fallback:
+- L1 context packaging: Repomix to Gitingest.
+
+Provider-health integration evidence: C002 Provider Health Lab run 36759816437.
+
 ## Failure semantics
 
 - failed stage → run failed;

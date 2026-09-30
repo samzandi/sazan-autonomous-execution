@@ -1,0 +1,90 @@
+name: Repository Intelligence C002 Provider Health Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-c002-provider-health-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+      - "tests/test_repository_intelligence_provider_health.py"
+      - "tests/test_repository_intelligence_provider_routing_integration.py"
+      - "tests/test_repository_intelligence_orchestration.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Compile provider router and orchestrator
+        run: |
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/provider_health.py
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/orchestrate_repository_intelligence.py
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/evidence_envelope.py
+
+      - name: Run provider routing contract tests
+        run: |
+          python3 -m unittest             tests/test_repository_intelligence_provider_health.py             tests/test_repository_intelligence_provider_routing_integration.py             tests/test_repository_intelligence_orchestration.py
+
+      - name: Verify explicit Repomix to Gitingest fallback receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/health.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "providers": [
+              {"provider":"repomix","status":"unhealthy","evidence":["probe:repomix:failed"]},
+              {"provider":"gitingest","status":"healthy","evidence":["probe:gitingest:ok"]}
+            ]
+          }
+          JSON
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/provider_health.py             "$RUNNER_TEMP/health.json"             --stage L1-context-packaging             --output "$RUNNER_TEMP/routing.json"             --require-routable
+
+          grep -q '"decision": "fallback"' "$RUNNER_TEMP/routing.json"
+          grep -q '"selected_provider": "gitingest"' "$RUNNER_TEMP/routing.json"
+          grep -q '"fallback_used": true' "$RUNNER_TEMP/routing.json"
+          grep -q 'probe:repomix:failed' "$RUNNER_TEMP/routing.json"
+          grep -q 'probe:gitingest:ok' "$RUNNER_TEMP/routing.json"
+
+      - name: Verify no semantic graph fallback fails closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/health-blocked.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "providers": [
+              {"provider":"codegraph-0.20.1","status":"unhealthy","evidence":["probe:codegraph:failed"]}
+            ]
+          }
+          JSON
+
+          set +e
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/provider_health.py             "$RUNNER_TEMP/health-blocked.json"             --stage L2-semantic-graph             --output "$RUNNER_TEMP/blocked.json"             --require-routable
+          code=$?
+          set -e
+          test "$code" -eq 9
+          grep -q '"decision": "blocked"' "$RUNNER_TEMP/blocked.json"
+          grep -q '"selected_provider": null' "$RUNNER_TEMP/blocked.json"
+
+      - name: Publish provider health evidence
+        shell: bash
+        run: |
+          {
+            echo "## C002 Provider Health / Fallback Lab"
+            echo
+            echo "- Provider health and eligibility are evaluated separately."
+            echo "- Repomix failure routed explicitly to Gitingest under the same stage contract."
+            echo "- Fallback usage produced a persisted receipt and constraint."
+            echo "- Semantic graph failure had no silent substitute and failed closed."
+            echo "- Provider/result mismatch is blocked by orchestration."
+            echo "- Legacy non-strict provider behavior remains compatible."
+          } >> "$GITHUB_STEP_SUMMARY"

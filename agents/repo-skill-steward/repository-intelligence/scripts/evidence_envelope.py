@@ -85,6 +85,14 @@ def new_envelope(manifest: dict[str, Any]) -> dict[str, Any]:
         "allow_truncation": bool(raw_budget_policy.get("allow_truncation", False)),
     }
 
+    raw_provider_policy = manifest.get("provider_policy", {})
+    if not isinstance(raw_provider_policy, dict):
+        raise ValueError("provider_policy must be an object")
+    provider_policy = {
+        "strict": bool(raw_provider_policy.get("strict", False)),
+        "allow_degraded": bool(raw_provider_policy.get("allow_degraded", False)),
+    }
+
     stages = []
     for stage_id in STAGE_ORDER:
         optional = stage_id == "L5-semantic-editing" and mode == "analysis"
@@ -97,6 +105,7 @@ def new_envelope(manifest: dict[str, Any]) -> dict[str, Any]:
             "metrics": {},
             "constraints": [],
             "budget": None,
+            "provider_route": None,
             "error": None,
         })
 
@@ -120,6 +129,7 @@ def new_envelope(manifest: dict[str, Any]) -> dict[str, Any]:
         },
         "budgets": normalized_budgets,
         "budget_policy": budget_policy,
+        "provider_policy": provider_policy,
         "budget_usage": {
             "context_tokens": 0,
             "graph_nodes": 0,
@@ -182,6 +192,7 @@ def apply_stage_result(envelope: dict[str, Any], result: dict[str, Any]) -> dict
         "metrics": metrics,
         "constraints": constraints,
         "budget": result.get("budget"),
+        "provider_route": result.get("provider_route"),
         "error": result.get("error"),
     })
 
@@ -240,6 +251,13 @@ def validate_envelope(envelope: dict[str, Any]) -> None:
         raise ValueError("budget_policy.strict must be a boolean")
     if not isinstance(budget_policy.get("allow_truncation"), bool):
         raise ValueError("budget_policy.allow_truncation must be a boolean")
+    provider_policy = envelope.get("provider_policy")
+    if not isinstance(provider_policy, dict):
+        raise ValueError("provider_policy must be an object")
+    if not isinstance(provider_policy.get("strict"), bool):
+        raise ValueError("provider_policy.strict must be a boolean")
+    if not isinstance(provider_policy.get("allow_degraded"), bool):
+        raise ValueError("provider_policy.allow_degraded must be a boolean")
     usage = envelope.get("budget_usage")
     if not isinstance(usage, dict):
         raise ValueError("budget_usage must be an object")

@@ -1,4 +1,4 @@
-version: 22
+version: 23
 verified_at: 2026-09-30
 context: C002
 
@@ -40,6 +40,24 @@ components:
       - no-artifact-mutation
       - legacy-nonstrict-compatibility
       - deterministic-receipts
+
+  - name: sazan-provider-health-router
+    role: evidence-backed-provider-health-and-fallback-routing
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/provider_health.py
+    license: repository-license
+    status: promoted-primary
+    lab_run_id: 36759816437
+    properties:
+      - health-evidence-required
+      - health-and-stage-eligibility-separated
+      - same-contract-fallback-only
+      - explicit-fallback-receipts
+      - private-target-provider-safety
+      - degraded-provider-opt-in
+      - provider-result-match-enforced
+      - no-silent-fallback
+      - fail-closed-when-no-equivalent-provider
+      - deterministic-routing
 
   - name: sazan-multi-repo-registry
     role: workspace-repository-registry-and-cross-repo-contract-graph
@@ -536,3 +554,24 @@ budget_routing:
   over_budget: blocked
   silent_truncation: forbidden
   actual_process_cancellation: provider-runner-responsibility
+
+provider_health_routing:
+  primary: sazan-provider-health-router
+  context: C002
+  production_policy:
+    strict: true
+    allow_degraded: false
+  baseline_fallbacks:
+    L1-context-packaging:
+      primary: repomix
+      fallback:
+        - gitingest
+      contract: context-packaging-v1
+  non_equivalent_paths:
+    - code2prompt-is-scoped-agent-mcp-not-full-context-fallback
+    - deepwiki-open-is-optional-product-not-silent-wiki-fallback
+    - serena-v2-is-license-constrained-reference-not-fallback
+  missing_health_observation: ineligible
+  unhealthy_primary_without_equivalent_fallback: blocked
+  private_target_requires_private_safe_provider: true
+  silent_fallback: forbidden

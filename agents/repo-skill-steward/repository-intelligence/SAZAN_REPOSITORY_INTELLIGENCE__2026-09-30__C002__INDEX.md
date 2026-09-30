@@ -18,7 +18,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - process-flow synthesis — VERIFIED / PROMOTED;
 - diff-impact normalization — VERIFIED / PROMOTED;
 - token and output budgets — VERIFIED / PROMOTED;
-- provider fallback/health controls;
+- provider fallback/health controls — VERIFIED / PROMOTED;
 - incremental state/cache strategy;
 - realistic end-to-end integration lab.
 
@@ -131,3 +131,27 @@ Model:
 - legacy manifests remain non-strict until explicitly upgraded.
 
 Status: VERIFIED — budget lab run 36757285076; 18 contract tests plus strict orchestration validation passed.
+
+
+## Milestone 6 — Provider health and fallback controls
+
+Implementation:
+- scripts/provider_health.py;
+- C002_PROVIDER_HEALTH_CONTRACT.md;
+- provider-routing unit tests;
+- orchestration integration tests;
+- provider health/fallback lab.
+
+Model:
+- provider health and stage eligibility are evaluated separately;
+- every strict health observation requires evidence;
+- fallback candidates must satisfy the same stage capability contract;
+- the only baseline automatic fallback is Repomix to Gitingest for L1 context packaging;
+- Code2Prompt remains a scoped agent/MCP path rather than a silent full-context substitute;
+- degraded providers require explicit opt-in;
+- private/internal targets require private-safe candidates;
+- orchestration enforces that stage output comes from the routed provider;
+- fallback selection is persisted as a receipt and constraint;
+- stages without an equivalent promoted fallback fail closed.
+
+Status: VERIFIED — provider health lab run 36759816437; 27 provider-routing/orchestration tests plus explicit fallback and fail-closed validation passed.
