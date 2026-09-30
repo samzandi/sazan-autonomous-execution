@@ -49,7 +49,7 @@ For cross-repository runtime analysis:
 For change-impact analysis:
 - use CodeGraph 0.20.1 `codegraph_pr_context` for repository-local git-diff evidence;
 - use `codegraph_analyze_impact` for focused single-symbol impact when needed;
-- normalize with `scripts/diff_impact_normalizer.py`;
+- normalize with `scripts/diff_impact_normalize.py`;
 - map changed artifacts explicitly to process steps and contract sides;
 - propagate provider-side contract changes to consumers;
 - identify downstream repositories through verified process flows;
