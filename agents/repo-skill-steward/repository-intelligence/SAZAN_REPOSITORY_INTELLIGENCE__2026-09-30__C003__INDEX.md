@@ -101,4 +101,4 @@ Model:
 - private/sensitive material and absolute execution paths must not be persisted;
 - promotion rollback status now requires evidence, not status alone.
 
-Status: CANDIDATE — awaiting real failure/rollback lab evidence.
+Status: VERIFIED / PROMOTED — real rollback lab run 36769117578 passed; promotion gate now requires rollback evidence; all repository regressions passed.
