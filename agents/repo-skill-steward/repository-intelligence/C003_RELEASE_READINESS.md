@@ -2,7 +2,7 @@
 
 Context: C003
 Date: 2026-09-30
-Status: ENGINE CANDIDATE
+Status: ENGINE VERIFIED / PROMOTED
 Milestone: 6
 
 ## Goal
@@ -55,3 +55,17 @@ The current evidence package is intentionally BLOCKED because:
 Milestones 3, 4, and 5 being verified does not override these missing live-runtime gates.
 
 The gate engine may be verified independently while the stable release remains blocked.
+
+
+## Verification evidence
+
+- release-readiness workflow run: 36770593359;
+- contract tests: PASSED;
+- current C003 blocked-evidence evaluation: PASSED;
+- synthetic fully-ready package: eligible only for parent release review;
+- auto-release remained false in all cases;
+- all repository regression workflows passed.
+
+Engine status: VERIFIED / PROMOTED.
+
+Stable-release verdict: BLOCKED until Codex runtime, Claude Code runtime, and live provider parity are independently verified.
