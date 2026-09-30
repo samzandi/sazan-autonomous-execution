@@ -4,27 +4,21 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 
 SCHEMA_VERSION = 1
-CLAIM_STATES = {"observed", "inferred"}
-CHANGE_TYPES = {
-    "body",
-    "signature",
-    "rename",
-    "delete",
-    "schema",
-    "contract",
-    "event",
-    "file",
-    "config",
+CHANGE_TYPES = {"add", "modify", "delete", "rename", "version-change"}
+SURFACE_KINDS = {
+    "file", "symbol", "contract", "http-api", "event", "schema",
+    "package", "cli", "storage", "custom",
 }
-CONTRACT_SIDES = {"provider", "consumer", "shared"}
-RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
+CONTRACT_SURFACES = {"contract", "http-api", "event", "schema", "package", "cli", "storage", "custom"}
+CLAIM_STATES = {"observed", "inferred"}
+CONTRACT_SIDES = {"provider", "consumer", "both"}
+LOCAL_RISK_LEVELS = {"low", "medium", "high", "unknown", "not-provided"}
 
 
 def _text(value: Any, name: str) -> str:
@@ -51,410 +45,410 @@ def _claim(raw: dict[str, Any], where: str) -> tuple[str, list[str], str]:
         raise ValueError(f"{where}: evidence is required")
     rationale = str(raw.get("rationale", "")).strip()
     if state == "inferred" and not rationale:
-        raise ValueError(f"{where}: inferred impact observation requires rationale")
+        raise ValueError(f"{where}: inferred claim requires rationale")
     return state, sorted(set(x.strip() for x in evidence)), rationale
 
 
-def _impact_id(repo_id: str, change_id: str) -> str:
-    raw = f"{repo_id}\0{change_id}".encode("utf-8")
-    return "impact_" + hashlib.sha256(raw).hexdigest()[:16]
+def _repo_ids(registry: dict[str, Any]) -> set[str]:
+    ids: set[str] = set()
+    for i, raw in enumerate(_list(registry.get("repositories"), "registry.repositories")):
+        if not isinstance(raw, dict):
+            raise ValueError(f"registry.repositories[{i}] must be an object")
+        rid = _text(raw.get("repository_id"), f"registry.repositories[{i}].repository_id")
+        if rid in ids:
+            raise ValueError(f"duplicate repository_id: {rid}")
+        ids.add(rid)
+    return ids
 
 
-def _max_risk(*values: str) -> str:
-    valid = [v for v in values if v in RISK_ORDER]
-    if not valid:
-        return "low"
-    return max(valid, key=lambda v: RISK_ORDER[v])
+def _contract_map(contracts: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for i, raw in enumerate(_list(contracts.get("contracts"), "contracts.contracts")):
+        if not isinstance(raw, dict):
+            raise ValueError(f"contracts.contracts[{i}] must be an object")
+        cid = _text(raw.get("contract_id"), f"contracts.contracts[{i}].contract_id")
+        if cid in out:
+            raise ValueError(f"duplicate contract_id: {cid}")
+        if raw.get("status") == "matched":
+            out[cid] = raw
+    return out
 
 
-def _escalate(risk: str, minimum: str) -> str:
-    return _max_risk(risk, minimum)
+def _strings(value: Any, name: str) -> list[str]:
+    items = _list(value, name)
+    if not all(isinstance(x, str) and x.strip() for x in items):
+        raise ValueError(f"{name} must contain non-empty strings")
+    return sorted(set(x.strip() for x in items))
 
 
-def _flow_edges(flow_report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def _normalize_contract_touch(
+    raw: dict[str, Any],
+    where: str,
+    repository_id: str,
+    contract_by_id: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    cid = _text(raw.get("contract_id"), f"{where}.contract_id")
+    contract = contract_by_id.get(cid)
+    if contract is None:
+        raise ValueError(f"{where}: unknown or unmatched contract_id {cid}")
+    if repository_id not in {contract.get("provider"), contract.get("consumer")}:
+        raise ValueError(f"{where}: changed repository is not a party to {cid}")
+
+    side = _text(raw.get("side"), f"{where}.side")
+    if side not in CONTRACT_SIDES:
+        raise ValueError(f"{where}.side must be provider, consumer, or both")
+    if side == "provider" and repository_id != contract.get("provider"):
+        raise ValueError(f"{where}: provider-side touch must come from contract provider")
+    if side == "consumer" and repository_id != contract.get("consumer"):
+        raise ValueError(f"{where}: consumer-side touch must come from contract consumer")
+
+    state, evidence, rationale = _claim(raw, where)
     return {
-        _text(edge.get("edge_id"), "flow.edges[].edge_id"): edge
-        for edge in _list(flow_report.get("edges"), "flow.edges")
-        if isinstance(edge, dict)
+        "contract_id": cid,
+        "side": side,
+        "state": state,
+        "evidence": evidence,
+        "rationale": rationale,
     }
 
 
 def normalize(
     registry: dict[str, Any],
     contracts: dict[str, Any],
-    flow_report: dict[str, Any],
+    flows: dict[str, Any],
     changes: dict[str, Any],
 ) -> dict[str, Any]:
     for name, payload in [
         ("registry", registry),
         ("contracts", contracts),
-        ("flow_report", flow_report),
+        ("flows", flows),
         ("changes", changes),
     ]:
         if payload.get("schema_version") != SCHEMA_VERSION:
             raise ValueError(f"{name}.schema_version must be 1")
 
     workspace_id = _text(registry.get("workspace_id"), "registry.workspace_id")
-    if (
-        contracts.get("workspace_id") != workspace_id
-        or flow_report.get("workspace_id") != workspace_id
-        or changes.get("workspace_id") != workspace_id
-    ):
-        raise ValueError("workspace_id mismatch across impact inputs")
+    for name, payload in [("contracts", contracts), ("flows", flows), ("changes", changes)]:
+        if payload.get("workspace_id") != workspace_id:
+            raise ValueError(f"workspace_id mismatch: {name}")
 
-    repo_ids = {
-        _text(repo.get("repository_id"), "registry.repositories[].repository_id")
-        for repo in _list(registry.get("repositories"), "registry.repositories")
-        if isinstance(repo, dict)
-    }
+    repo_ids = _repo_ids(registry)
+    contract_by_id = _contract_map(contracts)
 
-    contract_by_id = {
-        _text(c.get("contract_id"), "contracts.contracts[].contract_id"): c
-        for c in _list(contracts.get("contracts"), "contracts.contracts")
-        if isinstance(c, dict) and c.get("status") == "matched"
-    }
+    steps: dict[str, dict[str, Any]] = {}
+    for i, raw in enumerate(_list(flows.get("steps"), "flows.steps")):
+        if not isinstance(raw, dict):
+            raise ValueError(f"flows.steps[{i}] must be an object")
+        sid = _text(raw.get("step_id"), f"flows.steps[{i}].step_id")
+        if sid in steps:
+            raise ValueError(f"duplicate step_id: {sid}")
+        steps[sid] = raw
 
-    step_by_id = {
-        _text(step.get("step_id"), "flow.steps[].step_id"): step
-        for step in _list(flow_report.get("steps"), "flow.steps")
-        if isinstance(step, dict)
-    }
-    edge_by_id = _flow_edges(flow_report)
-    flows = [
-        flow
-        for flow in _list(flow_report.get("flows"), "flow.flows")
-        if isinstance(flow, dict)
-    ]
+    edges: dict[str, dict[str, Any]] = {}
+    for i, raw in enumerate(_list(flows.get("edges"), "flows.edges")):
+        if not isinstance(raw, dict):
+            raise ValueError(f"flows.edges[{i}] must be an object")
+        eid = _text(raw.get("edge_id"), f"flows.edges[{i}].edge_id")
+        if eid in edges:
+            raise ValueError(f"duplicate edge_id: {eid}")
+        edges[eid] = raw
+
+    flow_records = []
+    for i, raw in enumerate(_list(flows.get("flows"), "flows.flows")):
+        if not isinstance(raw, dict):
+            raise ValueError(f"flows.flows[{i}] must be an object")
+        flow_records.append(raw)
 
     raw_changes = _list(changes.get("changes"), "changes.changes")
     if not raw_changes:
         raise ValueError("changes.changes must not be empty")
 
     normalized_changes: list[dict[str, Any]] = []
-    affected_contracts: dict[str, dict[str, Any]] = {}
-    affected_flows: dict[str, dict[str, Any]] = {}
-    affected_repos: dict[str, dict[str, Any]] = {}
-    test_targets: set[str] = set()
-    blockers: list[dict[str, Any]] = []
-    global_constraints: set[str] = set()
-    overall_risk = "low"
-
-    def mark_repo(repo_id: str, *, reason: str, risk: str, evidence: list[str], state: str) -> None:
-        record = affected_repos.setdefault(repo_id, {
-            "repository_id": repo_id,
-            "risk": "low",
-            "state": "observed",
-            "reasons": [],
-            "evidence": [],
-        })
-        record["risk"] = _max_risk(record["risk"], risk)
-        if state == "inferred":
-            record["state"] = "inferred"
-        record["reasons"] = sorted(set(record["reasons"] + [reason]))
-        record["evidence"] = sorted(set(record["evidence"] + evidence))
+    all_impacted_repos: set[str] = set()
+    all_impacted_contracts: set[str] = set()
+    all_impacted_flows: set[str] = set()
+    all_impacted_steps: set[str] = set()
+    all_related_tests: set[str] = set()
+    all_affected_files: set[str] = set()
+    incomplete: list[dict[str, str]] = []
 
     for index, raw in enumerate(raw_changes):
         if not isinstance(raw, dict):
             raise ValueError(f"changes[{index}] must be an object")
-        change_id = _text(raw.get("change_id"), f"changes[{index}].change_id")
-        repo_id = _text(raw.get("repository_id"), f"changes[{index}].repository_id")
-        if repo_id not in repo_ids:
-            raise ValueError(f"{change_id}: unknown repository_id {repo_id}")
+        where = f"changes[{index}]"
+        change_id = _text(raw.get("change_id"), f"{where}.change_id")
+        repository_id = _text(raw.get("repository_id"), f"{where}.repository_id")
+        if repository_id not in repo_ids:
+            raise ValueError(f"{change_id}: unknown repository_id {repository_id}")
 
-        change_type = _text(raw.get("change_type"), f"changes[{index}].change_type")
+        change_type = _text(raw.get("change_type"), f"{where}.change_type")
         if change_type not in CHANGE_TYPES:
             raise ValueError(f"{change_id}: unsupported change_type {change_type}")
 
-        state, evidence, rationale = _claim(raw, f"changes[{index}]")
-        local = raw.get("local_impact", {})
-        if not isinstance(local, dict):
-            raise ValueError(f"{change_id}.local_impact must be an object")
+        surface_kind = _text(raw.get("surface_kind"), f"{where}.surface_kind")
+        if surface_kind not in SURFACE_KINDS:
+            raise ValueError(f"{change_id}: unsupported surface_kind {surface_kind}")
+        identifier = _text(raw.get("identifier"), f"{where}.identifier")
+        state, evidence, rationale = _claim(raw, where)
 
-        local_risk = str(local.get("risk", "low")).strip().lower()
-        if local_risk not in RISK_ORDER:
-            raise ValueError(f"{change_id}: local_impact.risk must be low/medium/high")
-
-        local_symbols = sorted(set(
-            str(x).strip() for x in _list(local.get("symbols"), f"{change_id}.local_impact.symbols")
-            if str(x).strip()
-        ))
-        local_files = sorted(set(
-            str(x).strip() for x in _list(local.get("files"), f"{change_id}.local_impact.files")
-            if str(x).strip()
-        ))
-        related_tests = sorted(set(
-            str(x).strip() for x in _list(local.get("tests"), f"{change_id}.local_impact.tests")
-            if str(x).strip()
-        ))
-        test_targets.update(related_tests)
-
-        touched_steps = sorted(set(
-            str(x).strip() for x in _list(raw.get("touched_steps"), f"{change_id}.touched_steps")
-            if str(x).strip()
-        ))
-        for sid in touched_steps:
-            if sid not in step_by_id:
-                raise ValueError(f"{change_id}: unknown touched_step {sid}")
-            if step_by_id[sid].get("repository_id") != repo_id:
-                raise ValueError(f"{change_id}: touched_step {sid} belongs to another repository")
-
-        contract_touches = _list(raw.get("contract_touches"), f"{change_id}.contract_touches")
-        normalized_touches = []
-        for touch_index, touch in enumerate(contract_touches):
-            if not isinstance(touch, dict):
-                raise ValueError(f"{change_id}.contract_touches[{touch_index}] must be an object")
-            cid = _text(touch.get("contract_id"), f"{change_id}.contract_touches[{touch_index}].contract_id")
-            contract = contract_by_id.get(cid)
-            if contract is None:
-                raise ValueError(f"{change_id}: unknown or unmatched contract_id {cid}")
-            side = _text(touch.get("side"), f"{change_id}.contract_touches[{touch_index}].side")
-            if side not in CONTRACT_SIDES:
-                raise ValueError(f"{change_id}: invalid contract side {side}")
-
-            expected_repo = (
-                contract["provider"] if side == "provider"
-                else contract["consumer"] if side == "consumer"
-                else None
-            )
-            if expected_repo is not None and expected_repo != repo_id:
-                raise ValueError(f"{change_id}: contract side does not match changed repository")
-            if side == "shared" and repo_id not in {contract["provider"], contract["consumer"]}:
-                raise ValueError(f"{change_id}: shared contract touch repository is not a contract participant")
-
-            touch_state, touch_evidence, touch_rationale = _claim(
-                touch, f"{change_id}.contract_touches[{touch_index}]"
-            )
-            combined_state = (
-                "observed"
-                if state == touch_state == contract.get("claim_state") == "observed"
-                else "inferred"
-            )
-
-            contract_risk = local_risk
-            if change_type in {"signature", "delete", "schema", "contract", "event"}:
-                contract_risk = _escalate(contract_risk, "high")
-            elif change_type == "rename":
-                contract_risk = _escalate(contract_risk, "medium")
-
-            rec = affected_contracts.setdefault(cid, {
-                "contract_id": cid,
-                "key": contract.get("key"),
-                "kind": contract.get("kind"),
-                "provider": contract.get("provider"),
-                "consumer": contract.get("consumer"),
-                "risk": "low",
-                "state": "observed",
-                "changed_sides": [],
-                "evidence": [],
-                "constraints": [],
-            })
-            rec["risk"] = _max_risk(rec["risk"], contract_risk)
-            if combined_state == "inferred":
-                rec["state"] = "inferred"
-                rec["constraints"] = sorted(set(
-                    rec["constraints"] + ["contract impact contains inferred evidence"]
-                ))
-            rec["changed_sides"] = sorted(set(rec["changed_sides"] + [side]))
-            rec["evidence"] = sorted(set(
-                rec["evidence"] + evidence + touch_evidence + list(contract.get("evidence", []))
-            ))
-
-            if side == "provider":
-                mark_repo(
-                    contract["consumer"],
-                    reason=f"consumes changed contract {cid}",
-                    risk=contract_risk,
-                    evidence=rec["evidence"],
-                    state=combined_state,
-                )
-            elif side == "consumer":
-                mark_repo(
-                    contract["provider"],
-                    reason=f"counterparty review for changed consumer contract {cid}",
-                    risk=_escalate(local_risk, "medium"),
-                    evidence=rec["evidence"],
-                    state=combined_state,
-                )
-            else:
-                for participant in {contract["provider"], contract["consumer"]}:
-                    if participant != repo_id:
-                        mark_repo(
-                            participant,
-                            reason=f"shares changed contract {cid}",
-                            risk=contract_risk,
-                            evidence=rec["evidence"],
-                            state=combined_state,
-                        )
-
-            normalized_touches.append({
-                "contract_id": cid,
-                "side": side,
-                "state": combined_state,
-                "evidence": touch_evidence,
-                "rationale": touch_rationale,
-            })
-
-        change_risk = local_risk
-        if change_type in {"signature", "delete"}:
-            change_risk = _escalate(change_risk, "high")
-        elif change_type in {"schema", "contract", "event", "rename"}:
-            change_risk = _escalate(change_risk, "medium")
-
-        mark_repo(
-            repo_id,
-            reason=f"contains changed artifact {change_id}",
-            risk=change_risk,
-            evidence=evidence,
-            state=state,
+        path = str(raw.get("path", "")).strip() or None
+        symbol = str(raw.get("symbol", "")).strip() or (
+            identifier if surface_kind == "symbol" else None
         )
-        overall_risk = _max_risk(overall_risk, change_risk)
 
-        touched_contract_ids = {x["contract_id"] for x in normalized_touches}
-        impacted_flow_ids: list[str] = []
+        local = raw.get("local_impact") or {}
+        if not isinstance(local, dict):
+            raise ValueError(f"{where}.local_impact must be an object")
 
-        for flow in flows:
+        local_evidence = _strings(local.get("evidence"), f"{where}.local_impact.evidence")
+        local_symbols = _strings(local.get("symbols"), f"{where}.local_impact.symbols")
+        local_files = _strings(local.get("files"), f"{where}.local_impact.files")
+        related_tests = _strings(local.get("tests"), f"{where}.local_impact.tests")
+        direct_callers = _strings(local.get("direct_callers"), f"{where}.local_impact.direct_callers")
+
+        risk_level = str(local.get("risk_level", "not-provided")).strip() or "not-provided"
+        if risk_level not in LOCAL_RISK_LEVELS:
+            raise ValueError(f"{where}.local_impact.risk_level unsupported: {risk_level}")
+
+        impacted_steps: set[str] = set()
+        for sid in _strings(local.get("steps"), f"{where}.local_impact.steps"):
+            if sid not in steps:
+                raise ValueError(f"{change_id}: unknown local impact step {sid}")
+            if steps[sid].get("repository_id") != repository_id:
+                raise ValueError(f"{change_id}: local impact step belongs to a different repository")
+            impacted_steps.add(sid)
+
+        symbol_names = set(local_symbols)
+        if symbol:
+            symbol_names.add(symbol)
+        for sid, step in steps.items():
+            if (
+                step.get("repository_id") == repository_id
+                and step.get("symbol")
+                and step.get("symbol") in symbol_names
+            ):
+                impacted_steps.add(sid)
+
+        touches: list[dict[str, Any]] = []
+        raw_touches = _list(raw.get("contract_touches"), f"{where}.contract_touches")
+        if any(not isinstance(x, dict) for x in raw_touches):
+            raise ValueError(f"{where}.contract_touches entries must be objects")
+        for i, touch in enumerate(raw_touches):
+            touches.append(
+                _normalize_contract_touch(
+                    touch,
+                    f"{where}.contract_touches[{i}]",
+                    repository_id,
+                    contract_by_id,
+                )
+            )
+
+        top_contract_id = str(raw.get("contract_id", "")).strip()
+        if surface_kind in CONTRACT_SURFACES:
+            if not top_contract_id:
+                raise ValueError(f"{change_id}: contract surface requires contract_id")
+            contract = contract_by_id.get(top_contract_id)
+            if contract is None:
+                raise ValueError(f"{change_id}: unknown or unmatched contract_id {top_contract_id}")
+            if surface_kind != "contract" and contract.get("kind") != surface_kind:
+                raise ValueError(f"{change_id}: surface_kind does not match contract kind")
+            if not any(t["contract_id"] == top_contract_id for t in touches):
+                side = "provider" if repository_id == contract.get("provider") else "consumer"
+                touches.append({
+                    "contract_id": top_contract_id,
+                    "side": side,
+                    "state": state,
+                    "evidence": evidence,
+                    "rationale": rationale,
+                })
+
+        impacted_contracts = {t["contract_id"] for t in touches}
+
+        compatibility = "not-applicable"
+        compatibility_findings: list[dict[str, Any]] = []
+        if change_type == "version-change" and impacted_contracts:
+            new_version = _text(raw.get("new_version"), f"{where}.new_version")
+            mismatch = False
+            for cid in sorted(impacted_contracts):
+                contract = contract_by_id[cid]
+                required = str(contract.get("required_version", "unspecified"))
+                ok = required in {"*", "unspecified", new_version}
+                compatibility_findings.append({
+                    "contract_id": cid,
+                    "new_version": new_version,
+                    "recorded_required_version": required,
+                    "status": "compatible" if ok else "version-mismatch",
+                })
+                mismatch = mismatch or not ok
+            compatibility = "version-mismatch" if mismatch else "compatible-with-recorded-requirement"
+
+        impacted_edges = {
+            eid
+            for eid, edge in edges.items()
+            if edge.get("contract_id") in impacted_contracts
+        }
+
+        directly_impacted_repos: set[str] = {repository_id}
+        for cid in impacted_contracts:
+            contract = contract_by_id[cid]
+            directly_impacted_repos.update(
+                r for r in [contract.get("provider"), contract.get("consumer")] if r
+            )
+
+        impacted_flow_ids: set[str] = set()
+        transitive_steps: set[str] = set()
+        transitive_repos: set[str] = set()
+
+        for flow in flow_records:
             flow_id = _text(flow.get("flow_id"), "flow.flow_id")
-            flow_steps = set(_list(flow.get("steps"), f"{flow_id}.steps"))
-            flow_edge_ids = _list(flow.get("edge_ids"), f"{flow_id}.edge_ids")
-            flow_contracts = {
-                edge_by_id[eid].get("contract_id")
-                for eid in flow_edge_ids
-                if eid in edge_by_id and edge_by_id[eid].get("contract_id")
-            }
-            if not (set(touched_steps) & flow_steps or touched_contract_ids & flow_contracts):
+            path_steps = _strings(flow.get("steps"), f"{flow_id}.steps")
+            edge_ids = _strings(flow.get("edge_ids"), f"{flow_id}.edge_ids")
+            impact_positions: list[int] = []
+
+            for sid in impacted_steps:
+                if sid in path_steps:
+                    impact_positions.append(path_steps.index(sid))
+            for eid in impacted_edges:
+                if eid in edge_ids:
+                    impact_positions.append(edge_ids.index(eid))
+
+            if not impact_positions:
                 continue
 
-            impacted_flow_ids.append(flow_id)
-            flow_state = "observed"
-            flow_evidence = set(evidence)
-            flow_constraints = set(flow.get("constraints", []))
-            downstream_repos: list[str] = []
+            impacted_flow_ids.add(flow_id)
+            start = min(impact_positions)
+            for sid in path_steps[start:]:
+                transitive_steps.add(sid)
+                rid = steps.get(sid, {}).get("repository_id")
+                if rid:
+                    transitive_repos.add(rid)
 
-            earliest = None
-            if touched_steps:
-                positions = [
-                    flow["steps"].index(sid)
-                    for sid in touched_steps
-                    if sid in flow_steps
-                ]
-                if positions:
-                    earliest = min(positions)
-
-            if earliest is None and touched_contract_ids:
-                for pos, eid in enumerate(flow_edge_ids):
-                    edge = edge_by_id.get(eid, {})
-                    if edge.get("contract_id") in touched_contract_ids:
-                        earliest = pos + 1
-                        break
-
-            if earliest is not None:
-                for sid in flow["steps"][earliest:]:
-                    target_repo = step_by_id[sid]["repository_id"]
-                    if target_repo not in downstream_repos:
-                        downstream_repos.append(target_repo)
-                    flow_evidence.update(step_by_id[sid].get("evidence", []))
-
-            for eid in flow_edge_ids:
-                edge = edge_by_id.get(eid, {})
-                if edge.get("state") == "inferred":
-                    flow_state = "inferred"
-                flow_evidence.update(edge.get("evidence", []))
-
-            if state == "inferred" or flow.get("state") == "inferred":
-                flow_state = "inferred"
-                flow_constraints.add("impact path contains inferred evidence")
-
-            flow_risk = change_risk
-            if len(flow.get("repositories", [])) > 1:
-                flow_risk = _escalate(flow_risk, "medium")
-            if touched_contract_ids and change_type in {"signature", "delete", "schema", "contract", "event"}:
-                flow_risk = _escalate(flow_risk, "high")
-
-            frec = affected_flows.setdefault(flow_id, {
-                "flow_id": flow_id,
-                "risk": "low",
-                "state": "observed",
-                "changed_repositories": [],
-                "downstream_repositories": [],
-                "evidence": [],
-                "constraints": [],
+        mapped = bool(impacted_steps or impacted_contracts)
+        constraints: list[str] = []
+        if state == "inferred":
+            constraints.append("change observation is inferred")
+        if any(t["state"] == "inferred" for t in touches):
+            constraints.append("contract-touch mapping contains inferred evidence")
+        if not mapped:
+            constraints.append("no symbol/process-step or contract mapping evidence")
+            incomplete.append({"change_id": change_id, "reason": "no impact mapping evidence"})
+        if surface_kind in {"file", "symbol"} and not local_evidence:
+            constraints.append("local code change has no semantic-impact evidence")
+            incomplete.append({
+                "change_id": change_id,
+                "reason": "file/symbol change requires local semantic-impact evidence",
             })
-            frec["risk"] = _max_risk(frec["risk"], flow_risk)
-            if flow_state == "inferred":
-                frec["state"] = "inferred"
-            frec["changed_repositories"] = sorted(set(frec["changed_repositories"] + [repo_id]))
-            frec["downstream_repositories"] = list(dict.fromkeys(
-                frec["downstream_repositories"] + downstream_repos
-            ))
-            frec["evidence"] = sorted(set(frec["evidence"]) | flow_evidence)
-            frec["constraints"] = sorted(set(frec["constraints"]) | flow_constraints)
 
-            for affected_repo in downstream_repos:
-                if affected_repo != repo_id:
-                    mark_repo(
-                        affected_repo,
-                        reason=f"downstream in affected flow {flow_id}",
-                        risk=flow_risk,
-                        evidence=frec["evidence"],
-                        state=flow_state,
-                    )
+        review_repos = sorted(directly_impacted_repos | transitive_repos)
+        combined_evidence = set(evidence + local_evidence)
+        for touch in touches:
+            combined_evidence.update(touch["evidence"])
 
-            overall_risk = _max_risk(overall_risk, flow_risk)
+        all_impacted_repos.update(review_repos)
+        all_impacted_contracts.update(impacted_contracts)
+        all_impacted_flows.update(impacted_flow_ids)
+        all_impacted_steps.update(impacted_steps | transitive_steps)
+        all_related_tests.update(related_tests)
+        all_affected_files.update(local_files)
 
         normalized_changes.append({
-            "impact_id": _impact_id(repo_id, change_id),
             "change_id": change_id,
-            "repository_id": repo_id,
+            "repository_id": repository_id,
             "change_type": change_type,
-            "path": str(raw.get("path", "")).strip() or None,
-            "symbol": str(raw.get("symbol", "")).strip() or None,
+            "surface_kind": surface_kind,
+            "identifier": identifier,
+            "path": path,
+            "symbol": symbol,
             "state": state,
-            "evidence": evidence,
+            "evidence_confidence": "observed" if state == "observed" and not any(
+                t["state"] == "inferred" for t in touches
+            ) else "inferred",
+            "evidence": sorted(combined_evidence),
             "rationale": rationale,
+            "mapping_status": "mapped" if mapped else "unmapped",
             "local_impact": {
-                "risk": local_risk,
+                "risk_level": risk_level,
                 "symbols": local_symbols,
                 "files": local_files,
-                "tests": related_tests,
+                "related_tests": related_tests,
+                "direct_callers": direct_callers,
+                "direct_steps": sorted(impacted_steps),
             },
-            "touched_steps": touched_steps,
-            "contract_touches": normalized_touches,
-            "affected_flows": sorted(set(impacted_flow_ids)),
-            "normalized_risk": change_risk,
+            "contract_touches": sorted(touches, key=lambda x: (x["contract_id"], x["side"])),
+            "transitive_steps": sorted(transitive_steps - impacted_steps),
+            "impacted_contracts": sorted(impacted_contracts),
+            "impacted_flows": sorted(impacted_flow_ids),
+            "review_repositories": review_repos,
+            "compatibility": compatibility,
+            "compatibility_findings": compatibility_findings,
+            "constraints": sorted(set(constraints)),
         })
 
-    for record in affected_contracts.values():
-        overall_risk = _max_risk(overall_risk, record["risk"])
-    for record in affected_repos.values():
-        overall_risk = _max_risk(overall_risk, record["risk"])
+    incomplete_unique: list[dict[str, str]] = []
+    seen_incomplete: set[tuple[str, str]] = set()
+    for item in incomplete:
+        key = (item["change_id"], item["reason"])
+        if key not in seen_incomplete:
+            seen_incomplete.add(key)
+            incomplete_unique.append(item)
 
-    if any(r["state"] == "inferred" for r in affected_repos.values()):
-        global_constraints.add("blast radius includes inferred repository impact")
-    if any(f["state"] == "inferred" for f in affected_flows.values()):
-        global_constraints.add("blast radius includes inferred process-flow impact")
+    test_scopes: list[dict[str, str]] = []
+    for rid in sorted(all_impacted_repos):
+        test_scopes.append({
+            "repository_id": rid,
+            "reason": "repository participates in direct or transitive blast radius",
+        })
+    for cid in sorted(all_impacted_contracts):
+        test_scopes.append({
+            "contract_id": cid,
+            "reason": "contract compatibility/regression validation required",
+        })
+    for fid in sorted(all_impacted_flows):
+        test_scopes.append({
+            "flow_id": fid,
+            "reason": "end-to-end regression validation required",
+        })
+    for test in sorted(all_related_tests):
+        test_scopes.append({
+            "test": test,
+            "reason": "related test preserved from local semantic-impact evidence",
+        })
 
-    if not affected_repos:
-        blockers.append({"type": "no-affected-repositories"})
+    version_mismatch_changes = sorted(
+        c["change_id"]
+        for c in normalized_changes
+        if c["compatibility"] == "version-mismatch"
+    )
 
     return {
         "schema_version": SCHEMA_VERSION,
         "context": "C002",
         "workspace_id": workspace_id,
-        "status": "blocked" if blockers else "verified",
-        "risk_level": overall_risk,
-        "changes": sorted(normalized_changes, key=lambda x: x["impact_id"]),
-        "affected_repositories": sorted(affected_repos.values(), key=lambda x: x["repository_id"]),
-        "affected_contracts": sorted(affected_contracts.values(), key=lambda x: x["contract_id"]),
-        "affected_flows": sorted(affected_flows.values(), key=lambda x: x["flow_id"]),
-        "test_targets": sorted(test_targets),
-        "constraints": sorted(global_constraints),
-        "blockers": blockers,
+        "status": "partial-evidence" if incomplete_unique else "verified",
+        "changes": sorted(normalized_changes, key=lambda x: x["change_id"]),
+        "blast_radius": {
+            "repositories": sorted(all_impacted_repos),
+            "contracts": sorted(all_impacted_contracts),
+            "flows": sorted(all_impacted_flows),
+            "steps": sorted(all_impacted_steps),
+            "related_tests": sorted(all_related_tests),
+            "affected_files": sorted(all_affected_files),
+        },
+        "compatibility_findings": {
+            "version_mismatch_changes": version_mismatch_changes,
+        },
+        "test_review_scope": test_scopes,
+        "incomplete_evidence": incomplete_unique,
         "summary": {
             "changes": len(normalized_changes),
-            "affected_repositories": len(affected_repos),
-            "affected_contracts": len(affected_contracts),
-            "affected_flows": len(affected_flows),
-            "test_targets": len(test_targets),
+            "impacted_repositories": len(all_impacted_repos),
+            "impacted_contracts": len(all_impacted_contracts),
+            "impacted_flows": len(all_impacted_flows),
+            "impacted_steps": len(all_impacted_steps),
+            "related_tests": len(all_related_tests),
+            "affected_files": len(all_affected_files),
+            "version_mismatches": len(version_mismatch_changes),
+            "incomplete_evidence": len(incomplete_unique),
         },
     }
 
@@ -465,48 +459,36 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         f"- Workspace: {report['workspace_id']}",
         f"- Status: {report['status']}",
-        f"- Risk: **{report['risk_level'].upper()}**",
         f"- Changes: {report['summary']['changes']}",
-        f"- Affected repositories: {report['summary']['affected_repositories']}",
-        f"- Affected contracts: {report['summary']['affected_contracts']}",
-        f"- Affected flows: {report['summary']['affected_flows']}",
-        "",
-        "## Affected repositories",
+        f"- Impacted repositories: {report['summary']['impacted_repositories']}",
+        f"- Impacted contracts: {report['summary']['impacted_contracts']}",
+        f"- Impacted flows: {report['summary']['impacted_flows']}",
+        f"- Related tests preserved: {report['summary']['related_tests']}",
         "",
     ]
-    for repo in report["affected_repositories"]:
-        out.append(
-            f"- **{repo['repository_id']}** — {repo['risk'].upper()} / {repo['state'].upper()}: "
-            + "; ".join(repo["reasons"])
-        )
-    out.extend(["", "## Affected contracts", ""])
-    if report["affected_contracts"]:
-        for contract in report["affected_contracts"]:
-            out.append(
-                f"- **{contract['contract_id']}** — {contract['kind']}:{contract['key']} — "
-                f"{contract['risk'].upper()} / {contract['state'].upper()}"
-            )
-    else:
-        out.append("- None.")
-    out.extend(["", "## Affected flows", ""])
-    if report["affected_flows"]:
-        for flow in report["affected_flows"]:
-            downstream = " → ".join(flow["downstream_repositories"]) or "none"
-            out.append(
-                f"- **{flow['flow_id']}** — {flow['risk'].upper()} / {flow['state'].upper()} — "
-                f"downstream: {downstream}"
-            )
-    else:
-        out.append("- None.")
-    out.extend(["", "## Test targets", ""])
-    if report["test_targets"]:
-        out.extend(f"- {target}" for target in report["test_targets"])
-    else:
-        out.append("- None.")
-    if report["constraints"]:
-        out.extend(["", "## Constraints", ""])
-        out.extend(f"- {c}" for c in report["constraints"])
-    out.append("")
+    for change in report["changes"]:
+        local = change["local_impact"]
+        out.extend([
+            f"## {change['change_id']} — {change['surface_kind']} / {change['change_type']}",
+            "",
+            f"- Repository: {change['repository_id']}",
+            f"- Identifier: {change['identifier']}",
+            f"- Mapping: {change['mapping_status']}",
+            f"- Evidence confidence: {change['evidence_confidence']}",
+            f"- Local risk: {local['risk_level']}",
+            f"- Compatibility: {change['compatibility']}",
+            f"- Review repositories: {', '.join(change['review_repositories']) or 'None'}",
+            f"- Impacted flows: {', '.join(change['impacted_flows']) or 'None'}",
+            f"- Related tests: {', '.join(local['related_tests']) or 'None'}",
+        ])
+        if change["constraints"]:
+            out.append(f"- Constraints: {'; '.join(change['constraints'])}")
+        out.append("")
+    if report["incomplete_evidence"]:
+        out.extend(["## Incomplete evidence", ""])
+        for item in report["incomplete_evidence"]:
+            out.append(f"- {item['change_id']}: {item['reason']}")
+        out.append("")
     return "\n".join(out)
 
 
@@ -518,21 +500,23 @@ def main() -> int:
     parser.add_argument("changes", type=Path)
     parser.add_argument("--json", dest="json_out", type=Path, required=True)
     parser.add_argument("--markdown", type=Path, required=True)
-    parser.add_argument("--require-impact", action="store_true")
+    parser.add_argument("--require-complete", action="store_true")
     args = parser.parse_args()
 
-    registry = json.loads(args.registry.read_text(encoding="utf-8"))
-    contracts = json.loads(args.contracts.read_text(encoding="utf-8"))
-    flows = json.loads(args.flows.read_text(encoding="utf-8"))
-    changes = json.loads(args.changes.read_text(encoding="utf-8"))
+    payloads = [
+        json.loads(args.registry.read_text(encoding="utf-8")),
+        json.loads(args.contracts.read_text(encoding="utf-8")),
+        json.loads(args.flows.read_text(encoding="utf-8")),
+        json.loads(args.changes.read_text(encoding="utf-8")),
+    ]
+    report = normalize(*payloads)
 
-    report = normalize(registry, contracts, flows, changes)
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
     args.markdown.parent.mkdir(parents=True, exist_ok=True)
     args.json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     args.markdown.write_text(render_markdown(report), encoding="utf-8")
 
-    if args.require_impact and report["status"] != "verified":
+    if args.require_complete and report["status"] != "verified":
         return 7
     return 0
 
