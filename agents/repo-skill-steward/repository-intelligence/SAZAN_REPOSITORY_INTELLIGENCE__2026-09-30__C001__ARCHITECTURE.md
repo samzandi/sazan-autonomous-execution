@@ -52,8 +52,19 @@ Independent Sazan roadmap inspired by capability gaps:
 - optional PDG/control/data-flow and taint adapters
 
 ### L3 — Architecture Presentation
-Primary visual candidate: GitDiagram
-Secondary: generated Mermaid/graph views from L2.
+Primary renderer: Sazan deterministic Mermaid renderer
+Input: normalized CodeGraph-style nodes and edges
+Status: pending end-to-end lab verification
+
+Design:
+- render locally with no API key and no network dependency;
+- sanitize labels and use stable opaque node IDs;
+- exclude external nodes by default;
+- enforce node/edge budgets;
+- keep the presentation adapter independent from the semantic graph provider;
+- use GitHub-native Mermaid for repository documentation when appropriate.
+
+GitDiagram is not a core dependency. Its hosted service and full self-hosted stack remain optional/reference-only because baseline operation requires additional cloud/storage/AI infrastructure. Use the hosted service only when richer interaction materially helps and repository privacy permits it.
 
 ### L4 — Wiki and Repository Q&A
 Primary candidate: DeepWiki Open.
