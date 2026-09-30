@@ -2,7 +2,7 @@
 
 Context: C003
 Date: 2026-09-30
-Status: CANDIDATE
+Status: BLOCKED
 Milestone: 2
 
 ## Goal
@@ -42,3 +42,22 @@ VERIFIED requires:
 - independent non-model validation passes.
 
 Otherwise the milestone remains BLOCKED and may not be promoted.
+
+
+## Live execution evidence
+
+Workflow run: 36767883113
+
+Observed result:
+- runner setup: PASSED;
+- repository checkout: PASSED;
+- authentication preflight: BLOCKED;
+- neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN was configured;
+- proof tooling, deterministic baseline, and live Claude execution were not started;
+- no merge or promotion was performed.
+
+Supported recovery paths:
+- configure ANTHROPIC_API_KEY; or
+- for eligible Claude Pro/Max users, generate an OAuth token with `claude setup-token` and store it as CLAUDE_CODE_OAUTH_TOKEN.
+
+Promotion remains forbidden until a live run and independent validation both pass.
