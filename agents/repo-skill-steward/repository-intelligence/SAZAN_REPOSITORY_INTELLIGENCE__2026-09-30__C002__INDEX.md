@@ -20,7 +20,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - token and output budgets — VERIFIED / PROMOTED;
 - provider fallback/health controls — VERIFIED / PROMOTED;
 - incremental state/cache strategy — VERIFIED / PROMOTED;
-- realistic end-to-end integration lab — CANDIDATE.
+- realistic end-to-end integration lab — VERIFIED / PROMOTED;
 
 ## Milestone 1 — Single-repository orchestration
 
@@ -197,4 +197,4 @@ Scenario:
 - private repository source identity must not appear in persisted outputs;
 - the final machine state must remain `ready-for-parent-review` with auto-promotion disabled.
 
-Status: CANDIDATE — awaiting pull-request lab evidence.
+Status: VERIFIED — end-to-end lab run 36764817135; dedicated end-to-end tests, full C002 regression suite, executable lab assertions, provider fallback, strict budgets, cross-revision cache reuse, parent-review gate, and privacy-redaction checks passed.
