@@ -95,18 +95,17 @@ Status: VERIFIED — process-flow lab run 36753107333; 11 contract tests plus en
 Implementation:
 - `scripts/diff_impact_normalize.py`;
 - `C002_DIFF_IMPACT_CONTRACT.md`;
-- diff-impact contract tests;
-- CodeGraph-backed multi-repository integration lab.
+- 11 diff-impact contract tests;
+- real `git diff → CodeGraph pr_context/analyze_impact → cross-repo blast radius` integration lab.
 
 Model:
-- file/symbol changes require local semantic-impact evidence rather than filename guesses;
-- changed symbols map explicitly to process steps;
-- API/event/schema/package changes bind to matched contract IDs;
-- contract changes mark both parties and propagate through verified process flows;
-- version changes are compared with recorded consumer requirements;
-- unmapped changes remain `partial-evidence`;
-- review scope contains repositories, contracts, and flows rather than a speculative numeric risk score;
-- inferred change observations retain explicit constraints;
-- private repository identities remain opaque.
+- CodeGraph 0.20.1 `pr_context` supplies repository-local branch-diff context;
+- `analyze_impact` supplies focused symbol-level callers/references when a changed symbol needs semantic mapping;
+- Sazan maps local evidence onto process steps and matched contracts;
+- contract changes expand review to both parties and downstream runtime flows;
+- version changes are reported as compatibility findings rather than asserted runtime breakage;
+- file/symbol changes without semantic mapping remain `partial-evidence`;
+- the output emits factual repository/contract/flow test-review scope and does not invent a numeric risk score;
+- private repository source names remain outside persisted impact artifacts.
 
-Status: VERIFIED — diff-impact lab run 36754987264; 11 contract tests plus CodeGraph-backed cross-repository impact validation passed.
+Status: pending C002 diff-impact lab.
