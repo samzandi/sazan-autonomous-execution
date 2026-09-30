@@ -18,15 +18,25 @@ jobs:
   reproducibility-pack:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      - name: Compile pack tooling
+      - name: Compile pack tooling without filesystem side effects
         run: |
-          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/build_reproducibility_pack.py
-          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/validate_reproducibility_pack.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          paths = [
+              Path("agents/repo-skill-steward/repository-intelligence/scripts/build_reproducibility_pack.py"),
+              Path("agents/repo-skill-steward/repository-intelligence/scripts/validate_reproducibility_pack.py"),
+          ]
+          for path in paths:
+              compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          PY
 
       - name: Run reproducibility contract tests
         run: python3 -m unittest tests/test_repository_intelligence_c003_reproducibility.py
