@@ -39,8 +39,8 @@ def _public_id(source: str) -> str:
     return f"public_{digest}"
 
 
-def _contract_id(provider: str, consumer: str, key: str) -> str:
-    material = f"{provider}\0{consumer}\0{key}".encode("utf-8")
+def _contract_id(provider: str, consumer: str, key: str, kind: str) -> str:
+    material = f"{provider}\0{consumer}\0{key}\0{kind}".encode("utf-8")
     return "contract_" + hashlib.sha256(material).hexdigest()[:16]
 
 
@@ -129,15 +129,20 @@ def build(workspace: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
             raise ValueError(f"duplicate repository_id: {repository_id}")
         seen_ids.add(repository_id)
 
+        raw_provides = _list(raw.get("provides"), f"{repository_id}.provides")
+        raw_requires = _list(raw.get("requires"), f"{repository_id}.requires")
+        if any(not isinstance(x, dict) for x in raw_provides):
+            raise ValueError(f"{repository_id}.provides entries must be objects")
+        if any(not isinstance(x, dict) for x in raw_requires):
+            raise ValueError(f"{repository_id}.requires entries must be objects")
+
         provides = [
             _normalize_claim(x, f"{repository_id}.provides[{i}]", requirement=False)
-            for i, x in enumerate(_list(raw.get("provides"), f"{repository_id}.provides"))
-            if isinstance(x, dict)
+            for i, x in enumerate(raw_provides)
         ]
         requires = [
             _normalize_claim(x, f"{repository_id}.requires[{i}]", requirement=True)
-            for i, x in enumerate(_list(raw.get("requires"), f"{repository_id}.requires"))
-            if isinstance(x, dict)
+            for i, x in enumerate(raw_requires)
         ]
 
         repos.append({
@@ -221,7 +226,7 @@ def build(workspace: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
                 constraints.append("cross-repository relationship contains inferred evidence")
 
             contract = {
-                "contract_id": _contract_id(provider_id, consumer_id, req["key"]),
+                "contract_id": _contract_id(provider_id, consumer_id, req["key"], req["kind"]),
                 "provider": provider_id,
                 "consumer": consumer_id,
                 "key": req["key"],
