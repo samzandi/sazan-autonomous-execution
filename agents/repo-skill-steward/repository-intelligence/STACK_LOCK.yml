@@ -1,4 +1,4 @@
-version: 18
+version: 19
 verified_at: 2026-09-30
 context: C002
 
@@ -56,6 +56,24 @@ components:
       - cycle-reporting
       - unreachable-step-reporting
       - deterministic-output
+
+  - name: sazan-diff-impact-normalizer
+    role: local-to-cross-repository-blast-radius-normalization
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py
+    license: repository-license
+    status: proposed-primary-pending-lab
+    properties:
+      - codegraph-impact-compatible
+      - provider-independent-normalized-schema
+      - local-file-symbol-test-impact
+      - contract-impact-propagation
+      - downstream-flow-propagation
+      - downstream-repository-review-scope
+      - private-absolute-path-redaction
+      - version-compatibility-findings
+      - deterministic-impact-level
+      - explicit-test-review-scope
+      - partial-evidence-state
 
   - name: repomix
     role: primary-context-packer
@@ -458,3 +476,26 @@ process_flow_routing:
     - inferred
   cycles_are_reported_not_auto-blocked: true
   no_complete_entry_terminal_flow: blocked
+
+diff_impact_routing:
+  primary: sazan-diff-impact-normalizer
+  context: C002
+  local_semantic_provider: codegraph
+  inputs:
+    - verified-multi-repo-registry
+    - matched-contract-graph
+    - verified-process-flows
+    - evidence-backed-change-set
+  propagation:
+    - local-semantic-impact
+    - contract-impact
+    - downstream-process-flow
+    - downstream-repository-review
+  impact_levels:
+    - unknown
+    - low
+    - medium
+    - high
+    - critical
+  file_change_without_semantic_evidence: partial-evidence
+  private_absolute_paths_persisted: false
