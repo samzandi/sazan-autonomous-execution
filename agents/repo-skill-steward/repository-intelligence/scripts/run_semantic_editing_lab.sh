@@ -97,7 +97,7 @@ PY
   "$venv/bin/serena" project health-check
 )
 
-FIXTURE="$fixture" "$venv/bin/python" - <<'PY'
+FIXTURE="$fixture" "$venv/bin/python" -u - <<'PY'
 import json
 import os
 from pathlib import Path
@@ -109,6 +109,7 @@ from serena.tools import FindReferencingSymbolsTool, RenameSymbolTool, SafeDelet
 root = Path(os.environ["FIXTURE"]).resolve()
 config = SerenaConfig.from_config_file().with_headless_mode_overrides()
 config.language_backend = LanguageBackend.LSP
+print("semantic-edit-stage=agent-create", flush=True)
 agent = SerenaAgent(project=str(root), serena_config=config)
 
 refs_tool = agent.get_tool(FindReferencingSymbolsTool)
@@ -119,6 +120,7 @@ refs = agent.execute_task(
     )
 )
 assert "calculate_total" in refs, refs
+print("semantic-edit-stage=references-ok", flush=True)
 
 rename_tool = agent.get_tool(RenameSymbolTool)
 rename_result = agent.execute_task(
@@ -129,6 +131,13 @@ rename_result = agent.execute_task(
     )
 )
 assert rename_result, rename_result
+money = (root / "core" / "money.py").read_text()
+orders = (root / "service" / "orders.py").read_text()
+assert "normalize_money" in money
+assert "normalize_money" in orders
+assert "normalize_amount" not in money
+assert "normalize_amount" not in orders
+print("semantic-edit-stage=rename-ok", flush=True)
 
 delete_tool = agent.get_tool(SafeDeleteSymbol)
 delete_result = agent.execute_task(
@@ -138,21 +147,21 @@ delete_result = agent.execute_task(
     )
 )
 assert "Cannot delete" not in delete_result, delete_result
-
-agent.shutdown()
-
 money = (root / "core" / "money.py").read_text()
-orders = (root / "service" / "orders.py").read_text()
-assert "normalize_money" in money
-assert "normalize_money" in orders
-assert "normalize_amount" not in money
-assert "normalize_amount" not in orders
 assert "obsolete_helper" not in money
+print("semantic-edit-stage=safe-delete-ok", flush=True)
+
 print(json.dumps({
     "references_verified": True,
     "cross_file_rename": True,
     "safe_delete": True,
-}, sort_keys=True))
+}, sort_keys=True), flush=True)
+
+# Serena 1.7.0's headless teardown can terminate the calling process while
+# stopping its managed language-server process tree. The edit assertions above
+# are complete; exit without invoking teardown hooks, and let the ephemeral CI
+# runner clean up orphaned language-server processes at job end.
+os._exit(0)
 PY
 
 python3 -m compileall -q "$fixture"
