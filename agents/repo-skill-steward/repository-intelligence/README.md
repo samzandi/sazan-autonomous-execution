@@ -32,6 +32,10 @@ C002 uses `scripts/budget_guard.py` to turn token, graph, output-byte, and stage
 
 C002 uses scripts/provider_health.py to separate provider health from stage eligibility and to make fallback explicit. The baseline automatic fallback is Repomix to Gitingest for L1 context packaging. Stages without an equivalent promoted provider fail closed instead of silently substituting a different tool.
 
+## Incremental state and cache
+
+C002 uses `scripts/incremental_cache.py` to reuse stage results only when semantic input fingerprints remain compatible. Revision is retained as provenance, while provider/version/contract, policy, implementation, and dependency changes invalidate cached results deterministically.
+
 ## Operating pipeline
 
 1. Intake and provenance
