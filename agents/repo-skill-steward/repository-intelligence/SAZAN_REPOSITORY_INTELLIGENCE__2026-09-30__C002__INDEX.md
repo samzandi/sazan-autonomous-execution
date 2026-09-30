@@ -15,7 +15,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - common evidence-envelope schema — VERIFIED / PROMOTED;
 - multi-repository registry — VERIFIED / PROMOTED;
 - cross-repository contracts — VERIFIED / PROMOTED;
-- process-flow synthesis;
+- process-flow synthesis — VERIFIED / PROMOTED;
 - diff-impact normalization;
 - token and output budgets;
 - provider fallback/health controls;
@@ -68,3 +68,23 @@ Model:
 - private/internal repositories require stable opaque IDs and never persist source names.
 
 Status: VERIFIED — multi-repository lab run 36751884638; 13 unit/integration checks passed.
+
+
+## Milestone 3 — Process / execution flow synthesis
+
+Implementation:
+- `scripts/process_flow_synthesis.py`;
+- `C002_PROCESS_FLOW_CONTRACT.md`;
+- process-flow unit tests;
+- multi-repository execution-flow integration lab.
+
+Model:
+- local process steps and edges remain evidence-backed inside each repository;
+- crossing a repository boundary requires an already matched cross-repository contract;
+- runtime direction is explicit rather than inferred from provider/consumer ownership;
+- complete entry→terminal paths aggregate step, edge, and contract evidence;
+- any inferred hop downgrades the complete path to inferred;
+- cycles and unreachable steps are reported;
+- max-hops and max-paths prevent runaway traversal.
+
+Status: VERIFIED — process-flow lab run 36753107333; 11 contract tests plus end-to-end multi-repository flow validation passed.

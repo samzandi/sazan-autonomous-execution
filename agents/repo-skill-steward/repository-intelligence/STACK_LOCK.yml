@@ -1,4 +1,4 @@
-version: 17
+version: 18
 verified_at: 2026-09-30
 context: C002
 
@@ -38,6 +38,24 @@ components:
       - ambiguous-provider-blockers
       - version-mismatch-blockers
       - external-requirements-not-forced-internal
+
+  - name: sazan-process-flow-synthesis
+    role: cross-repository-process-and-execution-flow-synthesis
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/process_flow_synthesis.py
+    license: repository-license
+    status: promoted-primary
+    lab_run_id: 36753107333
+    properties:
+      - matched-contract-boundary-enforcement
+      - explicit-runtime-flow-direction
+      - observed-inferred-propagation
+      - evidence-aggregation
+      - private-source-independent
+      - bounded-max-hops
+      - bounded-max-paths
+      - cycle-reporting
+      - unreachable-step-reporting
+      - deterministic-output
 
   - name: repomix
     role: primary-context-packer
@@ -424,3 +442,19 @@ multi_repo_routing:
     - version-mismatch
     - self-contract-not-cross-repository
   external_requirements_may_remain_external: true
+
+process_flow_routing:
+  primary: sazan-process-flow-synthesis
+  context: C002
+  requires:
+    - verified-multi-repo-registry
+    - matched-contract-graph
+    - evidence-backed-local-steps
+    - explicit-cross-repo-bindings
+  cross_repo_edge_policy: matched-contract-only
+  runtime_direction_must_be_explicit: true
+  claim_states:
+    - observed
+    - inferred
+  cycles_are_reported_not_auto-blocked: true
+  no_complete_entry_terminal_flow: blocked

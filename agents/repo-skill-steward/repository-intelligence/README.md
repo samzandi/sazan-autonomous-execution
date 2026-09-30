@@ -16,6 +16,10 @@ The C002 entry point is `scripts/orchestrate_repository_intelligence.py`, backed
 
 C002 adds `scripts/multi_repo_registry.py` for stable repository identity, upstream/downstream topology, and evidence-backed cross-repository contracts. Private/internal repositories use opaque stable IDs; their source names are excluded from persisted registry output.
 
+## Cross-repository execution flows
+
+C002 adds `scripts/process_flow_synthesis.py` to reconstruct bounded, evidence-backed runtime paths across repositories. Repository boundaries can only be crossed through matched contracts, and each cross-repository hop declares its runtime direction explicitly.
+
 ## Operating pipeline
 
 1. Intake and provenance
