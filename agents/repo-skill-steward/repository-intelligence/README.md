@@ -1,6 +1,6 @@
 # Sazan Repository Intelligence Engine
 
-Status: C001 ACTIVE
+Status: C001 ARCHIVE — baseline complete; C002 ACTIVE
 Date: 2026-09-30
 Parent: Sazan Repo & Skill Steward
 
