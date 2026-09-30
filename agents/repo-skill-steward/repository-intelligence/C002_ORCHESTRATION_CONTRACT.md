@@ -82,7 +82,19 @@ Each run carries explicit upper bounds for:
 - output bytes;
 - stage timeout seconds.
 
-Provider adapters must honor these budgets when they are wired into the orchestrator.
+The verified Budget Guard is wired into the orchestrator.
+
+Production strict mode:
+- requires stage-specific usage measurements;
+- blocks missing required measurements;
+- blocks budget overruns;
+- blocks provider truncation by default;
+- stores a budget receipt on each completed stage;
+- stores cumulative budget usage in the evidence envelope.
+
+Legacy manifests remain non-strict until explicitly upgraded.
+
+Budget integration evidence: C002 Budget Lab run 36757285076.
 
 ## Failure semantics
 
