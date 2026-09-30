@@ -126,5 +126,37 @@ class DiffImpactTests(unittest.TestCase):
         self.assertEqual(a,b)
         self.assertEqual(IMPACT.render_markdown(a),IMPACT.render_markdown(b))
 
+
+    def test_duplicate_change_id_is_rejected(self):
+        r,c,f,_=fixture()
+        item=change()["changes"][0]
+        data={"schema_version":1,"workspace_id":"impact-fixture","changes":[item,dict(item)]}
+        with self.assertRaisesRegex(ValueError,"duplicate change_id"):
+            IMPACT.normalize(r,c,f,data)
+
+    def test_private_absolute_path_is_redacted(self):
+        r,c,f,_=fixture()
+        data={
+            "schema_version":1,
+            "workspace_id":"impact-fixture",
+            "changes":[{
+                "change_id":"private-file",
+                "repository_id":"repo_worker_01",
+                "change_type":"modify",
+                "surface_kind":"file",
+                "identifier":"worker.py",
+                "state":"observed",
+                "evidence":["git-diff"],
+                "local_impact":{
+                    "files":["/home/runner/secret-owner/private-worker/worker.py"],
+                    "evidence":["codegraph:impact"]
+                }
+            }]
+        }
+        out=IMPACT.normalize(r,c,f,data)
+        payload=json.dumps(out,sort_keys=True)
+        self.assertNotIn("secret-owner",payload)
+        self.assertIn("private-path-",payload)
+
 if __name__ == "__main__":
     unittest.main()
