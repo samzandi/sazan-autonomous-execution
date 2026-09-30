@@ -112,7 +112,7 @@ In strict mode:
 Baseline automatic fallback:
 - L1 context packaging: Repomix to Gitingest.
 
-Provider-health integration is pending the dedicated C002 Provider Health Lab.
+Provider-health integration evidence: C002 Provider Health Lab run 36759816437.
 
 ## Failure semantics
 
