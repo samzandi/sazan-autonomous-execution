@@ -77,6 +77,14 @@ def new_envelope(manifest: dict[str, Any]) -> dict[str, Any]:
     if any(v <= 0 for v in normalized_budgets.values()):
         raise ValueError("all budgets must be positive")
 
+    raw_budget_policy = manifest.get("budget_policy", {})
+    if not isinstance(raw_budget_policy, dict):
+        raise ValueError("budget_policy must be an object")
+    budget_policy = {
+        "strict": bool(raw_budget_policy.get("strict", False)),
+        "allow_truncation": bool(raw_budget_policy.get("allow_truncation", False)),
+    }
+
     stages = []
     for stage_id in STAGE_ORDER:
         optional = stage_id == "L5-semantic-editing" and mode == "analysis"
@@ -88,6 +96,7 @@ def new_envelope(manifest: dict[str, Any]) -> dict[str, Any]:
             "artifacts": [],
             "metrics": {},
             "constraints": [],
+            "budget": None,
             "error": None,
         })
 
@@ -171,6 +180,7 @@ def apply_stage_result(envelope: dict[str, Any], result: dict[str, Any]) -> dict
         "artifacts": artifacts,
         "metrics": metrics,
         "constraints": constraints,
+        "budget": result.get("budget"),
         "error": result.get("error"),
     })
 
@@ -222,6 +232,16 @@ def validate_envelope(envelope: dict[str, Any]) -> None:
     if envelope.get("target", {}).get("visibility") in {"private", "internal"}:
         if envelope.get("target", {}).get("identity_persisted"):
             raise ValueError("private/internal identity must not be persisted")
+    budget_policy = envelope.get("budget_policy")
+    if not isinstance(budget_policy, dict):
+        raise ValueError("budget_policy must be an object")
+    if not isinstance(budget_policy.get("strict"), bool):
+        raise ValueError("budget_policy.strict must be a boolean")
+    if not isinstance(budget_policy.get("allow_truncation"), bool):
+        raise ValueError("budget_policy.allow_truncation must be a boolean")
+    usage = envelope.get("budget_usage")
+    if not isinstance(usage, dict):
+        raise ValueError("budget_usage must be an object")
 
 
 def canonical_json(envelope: dict[str, Any]) -> str:
