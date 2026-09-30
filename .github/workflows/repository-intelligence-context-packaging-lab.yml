@@ -1,0 +1,177 @@
+name: Repository Intelligence Context Packaging Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-context-packaging-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  context-packaging-benchmark:
+    runs-on: ubuntu-latest
+    env:
+      npm_config_ignore_scripts: "true"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PIP_NO_INPUT: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.20.0"
+
+      - name: Create isolated fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/repo-intelligence-fixture"
+          mkdir -p "$fixture/src" "$fixture/docs" "$fixture/data"
+          cat > "$fixture/.gitignore" <<'EOF'
+          ignored.txt
+          EOF
+          cat > "$fixture/src/app.py" <<'EOF'
+          from helpers import normalize
+
+          def execute(items):
+              return [normalize(item) for item in items]
+          EOF
+          cat > "$fixture/src/helpers.py" <<'EOF'
+          def normalize(value):
+              return str(value).strip().lower()
+          EOF
+          cat > "$fixture/src/types.ts" <<'EOF'
+          export interface ExecutionEvent {
+            id: string;
+            state: "planned" | "running" | "verified";
+          }
+          EOF
+          cat > "$fixture/docs/architecture.md" <<'EOF'
+          # Fixture Architecture
+          A small mixed-language repository used only for repository-context packaging tests.
+          EOF
+          cat > "$fixture/data/sample.json" <<'EOF'
+          {"project":"sazan-fixture","enabled":true}
+          EOF
+          echo "SHOULD_NOT_APPEAR_IN_OUTPUT" > "$fixture/ignored.txt"
+          echo "FIXTURE=$fixture" >> "$GITHUB_ENV"
+
+      - name: Install pinned Gitingest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/gitingest-venv"
+          "$RUNNER_TEMP/gitingest-venv/bin/python" -m pip install --quiet "gitingest==0.3.1"
+          version="$("$RUNNER_TEMP/gitingest-venv/bin/gitingest" --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+          test "$version" = "0.3.1"
+
+      - name: Install verified Code2Prompt binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl -fsSL --retry 3 -o code2prompt \
+            https://github.com/mufeedvh/code2prompt/releases/download/v4.2.0/code2prompt-x86_64-unknown-linux-gnu
+          echo "69ff91f6e690de4814f38eb79d1fff5971d5a39bdc82b23ea784dcd450bf965f  code2prompt" | sha256sum -c -
+          chmod +x code2prompt
+          "$RUNNER_TEMP/code2prompt" --version
+
+      - name: Run Repomix 1.18.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          start="$(date +%s%N)"
+          npx --yes repomix@1.18.1 "$FIXTURE" \
+            --style markdown \
+            --output-file "$RUNNER_TEMP/repomix.md" \
+            > "$RUNNER_TEMP/repomix.log" 2>&1
+          end="$(date +%s%N)"
+          echo "$(( (end-start)/1000000 ))" > "$RUNNER_TEMP/repomix.ms"
+          test -s "$RUNNER_TEMP/repomix.md"
+
+      - name: Run Gitingest 0.3.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          start="$(date +%s%N)"
+          "$RUNNER_TEMP/gitingest-venv/bin/gitingest" "$FIXTURE" \
+            --output "$RUNNER_TEMP/gitingest.txt" \
+            > "$RUNNER_TEMP/gitingest.log" 2>&1
+          end="$(date +%s%N)"
+          echo "$(( (end-start)/1000000 ))" > "$RUNNER_TEMP/gitingest.ms"
+          test -s "$RUNNER_TEMP/gitingest.txt"
+
+      - name: Run Code2Prompt 4.2.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          start="$(date +%s%N)"
+          "$RUNNER_TEMP/code2prompt" "$FIXTURE" \
+            --output-file "$RUNNER_TEMP/code2prompt.txt" \
+            > "$RUNNER_TEMP/code2prompt.log" 2>&1
+          end="$(date +%s%N)"
+          echo "$(( (end-start)/1000000 ))" > "$RUNNER_TEMP/code2prompt.ms"
+          test -s "$RUNNER_TEMP/code2prompt.txt"
+
+      - name: Validate ignore behavior and emit benchmark JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          for output in repomix.md gitingest.txt code2prompt.txt; do
+            if grep -q "SHOULD_NOT_APPEAR_IN_OUTPUT" "$RUNNER_TEMP/$output"; then
+              echo "ignored fixture leaked into $output" >&2
+              exit 1
+            fi
+          done
+
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          base = Path(os.environ["RUNNER_TEMP"])
+          specs = {
+              "repomix": "repomix.md",
+              "gitingest": "gitingest.txt",
+              "code2prompt": "code2prompt.txt",
+          }
+          result = {}
+          for name, filename in specs.items():
+              data = (base / filename).read_text(encoding="utf-8", errors="replace")
+              result[name] = {
+                  "bytes": len(data.encode("utf-8")),
+                  "lines": len(data.splitlines()),
+                  "elapsed_ms": int((base / f"{name}.ms").read_text().strip()),
+                  "ignored_marker_present": "SHOULD_NOT_APPEAR_IN_OUTPUT" in data,
+              }
+
+          result["fixture"] = {
+              "source_files": 5,
+              "ignored_files": 1,
+              "contains_python": True,
+              "contains_typescript": True,
+              "contains_markdown": True,
+              "contains_json": True,
+          }
+
+          payload = json.dumps(result, indent=2, sort_keys=True)
+          print(payload)
+          (base / "context-packaging-benchmark.json").write_text(payload + "\n", encoding="utf-8")
+          PY
+
+      - name: Publish benchmark summary
+        shell: bash
+        run: |
+          {
+            echo "## Repository Intelligence Context Packaging Lab"
+            echo
+            echo "~~~json"
+            cat "$RUNNER_TEMP/context-packaging-benchmark.json"
+            echo "~~~"
+          } >> "$GITHUB_STEP_SUMMARY"
