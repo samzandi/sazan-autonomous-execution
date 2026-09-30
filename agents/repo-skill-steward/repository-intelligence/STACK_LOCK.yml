@@ -1,4 +1,4 @@
-version: 12
+version: 13
 verified_at: 2026-09-30
 context: C001
 
@@ -208,7 +208,8 @@ components:
     implementation: agents/repo-skill-steward/repository-intelligence/scripts/build_rebuild_spec.py
     subagent: agents/repo-skill-steward/repository-intelligence/subagents/reverse-engineering/SKILL.md
     license: repository-license
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36747513165
     properties:
       - evidence-ledger
       - observed-inferred-unknown-claim-states
