@@ -2,20 +2,43 @@
 
 Context: C001
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
 
-## Decision frame
+## Decision
 
-The Sazan Repository Intelligence layer needs a commercially compatible semantic graph engine that can expose symbol, call, dependency, and impact evidence to agents.
-
-## CodeGraph
+CodeGraph Community is promoted as the primary semantic graph engine for Sazan Repository Intelligence.
 
 Canonical repository: codegraph-ai/CodeGraph
-Pinned evaluation version: 0.20.1
+Pinned version: 0.20.1
 License: Apache-2.0
+Primary operating mode: graph-only for deterministic structural analysis and CI
+Telemetry policy: off
+Verified lab run: 36740772666
+Linux x86_64 SHA-256: 32b26422fa5ffe0a130955b7f7df771f722b2d427d67f53f104d9907bdfb24a6
 
-Community capabilities relevant to Sazan:
-- 38-language tree-sitter parsing;
+## Verified lab evidence
+
+The isolated lab created a three-layer Python fixture:
+- core.money.normalize_amount
+- service.orders.calculate_total
+- api.checkout.handle_checkout
+
+The pinned CodeGraph binary successfully verified:
+- symbol search for normalize_amount;
+- cross-file caller discovery from normalize_amount to calculate_total;
+- dependency graph traversal from service/orders.py toward core/money.py;
+- impact analysis showing calculate_total in the blast radius of normalize_amount.
+
+The workflow used:
+- repository permission: contents read;
+- no user secrets;
+- CODEGRAPH_TELEMETRY=off;
+- graph-only mode;
+- a release binary whose SHA-256 matched the canonical GitHub release metadata.
+
+## Community capabilities used by Sazan
+
+- multi-language semantic indexing;
 - symbol search;
 - callers and callees;
 - call graph;
@@ -27,25 +50,17 @@ Community capabilities relevant to Sazan:
 - circular dependency detection;
 - architecture document generation;
 - documentation verification;
-- MCP server;
-- graph-only mode for CI and low-resource structural analysis;
-- persistent project-scoped memory and docs surfaces;
-- narrowed MCP profiles to reduce tool-context overhead.
+- MCP exposure;
+- narrowed tool profiles;
+- persistent project-scoped memory/docs surfaces when enabled.
 
-Security and deployment notes:
-- community binary can run in graph-only mode with no embedding model;
-- official release publishes SHA-256 digests;
-- telemetry can be disabled with CODEGRAPH_TELEMETRY=off;
-- built-in exclusions cover common build/cache, credential directories, and secret file extensions;
-- the community repository is Apache-2.0, suitable for commercial integration subject to normal license/NOTICE obligations.
-
-## GitNexus benchmark
+## GitNexus benchmark boundary
 
 Canonical repository: nxpatterns/gitnexus
 License: PolyForm Noncommercial 1.0.0
-Integration status: reference-only for Sazan commercial work.
+Status: reference-only; no commercial embedding.
 
-Architectural capabilities worth reproducing independently where valuable:
+GitNexus remains an architectural benchmark for capabilities Sazan may independently implement:
 - process/execution-flow discovery;
 - community clustering;
 - precomputed relational context;
@@ -57,29 +72,21 @@ Architectural capabilities worth reproducing independently where valuable:
 - optional PDG, control/data dependence, and taint analysis;
 - graph-backed plan/work/review workflows.
 
-These are benchmark requirements, not permission to copy GitNexus code or embed its implementation.
+These are requirements and design references only. Do not copy or vendor GitNexus implementation into Sazan commercial components.
 
-## Core strategy
+## Sazan-owned abstraction
 
-Use CodeGraph community as the first Sazan semantic graph engine if the isolated lab verifies:
-1. symbol discovery;
-2. cross-file caller discovery;
-3. import/dependency relationships;
-4. impact analysis;
-5. digest-pinned binary execution;
-6. read-only, no-secret CI operation.
+CodeGraph is an engine, not the Sazan architecture.
 
-Keep Sazan orchestration, evidence contracts, policy gates, multi-repo registry, and future higher-order graph intelligence independent from any single upstream engine.
-
-## Planned gap layer
-
-Features not delegated permanently to CodeGraph should live in Sazan-owned adapters and graph services:
-- cross-repository registry and identity;
-- process/flow synthesis across repositories;
-- change-impact normalization;
+Sazan retains ownership of:
+- canonical repository identity and cross-repo registry;
+- evidence schema;
+- graph-provider adapter contract;
+- process/flow synthesis;
+- normalized change-impact reports;
 - token-budgeted graph evidence envelopes;
-- optional PDG/taint adapters;
-- engine-independent graph schema;
+- policy and promotion gates;
+- future PDG/taint adapters;
 - fallback graph providers.
 
-No new top-level repository is required for this stage. The existing Repository Intelligence module owns the abstraction.
+This separation allows CodeGraph to be upgraded or replaced without changing the higher-level Repository Intelligence contract.
