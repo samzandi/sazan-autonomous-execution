@@ -26,8 +26,8 @@ class C003ReproducibilityPackTests(unittest.TestCase):
     def test_current_repository_pack_verifies(self):
         pack = BUILD.build(REPO_ROOT, SPEC_PATH)
         report = VALIDATE.validate(pack, REPO_ROOT, SPEC_PATH)
-        self.assertEqual(report["status"], "verified")
-        self.assertTrue(all(report["checks"].values()))
+        self.assertEqual(report["status"], "verified", report)
+        self.assertTrue(all(report["checks"].values()), report)
 
     def test_pack_is_deterministic_for_same_revision(self):
         one = BUILD.build(REPO_ROOT, SPEC_PATH)
