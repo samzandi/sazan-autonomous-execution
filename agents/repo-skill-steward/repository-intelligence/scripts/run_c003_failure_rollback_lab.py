@@ -38,6 +38,7 @@ def _functional(cwd: Path) -> subprocess.CompletedProcess[str]:
     return _run(
         [
             "python3",
+            "-B",
             "-c",
             "from app import transform; assert transform(3) == 6; print('functional-validation=passed')",
         ],
