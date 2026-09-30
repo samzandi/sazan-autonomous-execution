@@ -6,105 +6,94 @@ Status: LAB VALIDATION
 
 ## Purpose
 
-Normalize repository-local diffs into one evidence-backed cross-repository blast-radius report.
+Translate repository changes into an evidence-backed cross-repository blast radius without guessing impact from filenames, naming conventions, or a synthetic numeric risk score.
 
-## Local evidence source
+## Inputs
 
-Primary local diff evidence:
-- CodeGraph Community 0.20.1 `codegraph_pr_context`;
-- CodeGraph `analyze_impact` when a single symbol requires focused pre-change analysis.
-
-The pinned 0.20.1 release already includes `codegraph_pr_context`, which:
-- runs `git diff` against a base branch;
-- identifies changed files/functions;
-- classifies changed functions;
-- reports callers;
-- reports related tests and test gaps;
-- reports affected modules;
-- emits a local risk level.
-
-Sazan does not treat CodeGraph's repository-local risk as the final system blast radius.
-
-## Sazan normalization layer
-
-`scripts/diff_impact_normalizer.py` combines:
-- local diff impact;
-- multi-repository registry;
+The normalizer consumes:
+- privacy-safe multi-repository registry;
 - matched contract graph;
-- verified process-flow graph;
-- evidence-backed mappings from changed artifacts to flow steps and contract sides.
+- synthesized process/execution flows;
+- normalized change observations;
+- local semantic-impact evidence when the changed surface is a file or symbol.
 
-## Change observations
+## Change surfaces
 
-Each normalized change records:
-- repository ID;
-- change ID;
-- change type;
-- file/symbol when available;
-- observed or inferred state;
-- local risk;
-- locally affected symbols/files/tests;
-- touched process steps;
-- touched contracts and the changed side.
+Baseline surfaces:
+- file;
+- symbol;
+- contract;
+- http-api;
+- event;
+- schema;
+- package;
+- cli;
+- storage;
+- custom.
 
-Supported baseline change types:
-- body
-- signature
-- rename
-- delete
-- schema
-- contract
-- event
-- file
-- config
+Change types:
+- add;
+- modify;
+- delete;
+- rename;
+- version-change.
 
-## Contract propagation
+## Local semantic impact
 
-Provider-side contract changes propagate to consumers.
+File/symbol changes should carry local semantic-impact evidence produced by tools such as CodeGraph.
 
-Consumer-side contract changes trigger provider counterparty review.
+Supported mappings:
+- impacted process-step IDs;
+- impacted symbol names;
+- evidence references.
 
-Shared contract changes propagate to the other contract participant.
+A filename alone is not sufficient to claim downstream impact.
 
-Breaking surface changes such as signature/delete/schema/contract/event changes are escalated to high contract risk.
+## Contract impact
 
-## Flow propagation
+API/event/schema/package/etc. changes bind to a concrete matched contract ID.
 
-A change affects a process flow when it touches:
-- a step present in that flow; or
-- a contract used by that flow.
+The normalizer then:
+- marks both contract parties for review;
+- locates process-flow edges using that contract;
+- propagates downstream impact through complete runtime flows;
+- records affected flows and factual test/review scope.
 
-The report identifies downstream repositories from the earliest changed point in that flow.
+For version-change observations, the new provider version is compared with the recorded consumer requirement.
+A mismatch is reported as a compatibility finding. It is not silently converted into a claim that runtime breakage has already occurred.
 
-Any inferred change, contract hop, or flow evidence propagates an inferred constraint.
+## Blast radius
 
-## Risk
-
-Risk and confidence are separate concepts.
-
-Risk:
-- local CodeGraph risk is the baseline;
-- signature/delete changes are at least high;
-- schema/contract/event changes are at least medium locally and high when they affect a matched contract;
-- cross-repository process impact is at least medium.
-
-Confidence/state:
-- OBSERVED when the supporting mappings and flow evidence are observed;
-- INFERRED when any required mapping is inferred.
-
-## Outputs
-
-- normalized changes;
-- affected repositories with reasons;
+Output categories:
+- directly and transitively affected process steps;
 - affected contracts;
-- affected flows and downstream repositories;
-- related test targets;
-- risk level;
-- constraints;
-- blockers;
-- Markdown summary.
+- affected end-to-end flows;
+- repositories requiring review/testing;
+- compatibility findings;
+- incomplete evidence.
+
+For a local step change, downstream propagation begins at the earliest affected point in each flow.
+For a contract change, both contract participants plus the runtime path from the contract hop onward are included.
+
+## Evidence semantics
+
+Each change is OBSERVED or INFERRED.
+Inferred changes require rationale.
+
+If a file/symbol change cannot be mapped to semantic symbols/steps, the report becomes `partial-evidence`.
+A file change without local semantic-impact evidence also produces `partial-evidence`.
+
+This prevents an unknown blast radius from being presented as complete.
+
+## Test/review scope
+
+The normalizer emits factual review targets:
+- impacted repositories;
+- touched contracts;
+- impacted end-to-end flows.
+
+It does not assign speculative numeric risk scores.
 
 ## Privacy
 
-The normalizer consumes privacy-safe repository IDs.
-Private repository source names are not required and must not be added to impact outputs.
+The layer operates entirely on privacy-safe repository IDs and never requires private repository source names.
