@@ -2,7 +2,7 @@
 
 Context: C001
 Date: 2026-09-30
-Status: ACTIVE
+Status: ARCHIVE — baseline architecture complete
 
 ## Layer model
 
@@ -139,7 +139,8 @@ Operational rule:
 ### L7 — Evidence and Promotion
 Primary engine: Sazan deterministic promotion gate
 Owner: verifier sub-agent + parent Repo & Skill Steward
-Status: pending promotion-gate lab
+Status: verified and promoted
+Evidence: promotion gate lab run 36748478777
 
 Mandatory evidence:
 - canonical provenance and immutable revision;
