@@ -2,7 +2,18 @@
 
 Context: C001
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
+
+Verified lab run: 36748478777
+
+Verified:
+- twelve promotion-policy unit tests passed;
+- a fully evidenced candidate was eligible but remained non-automatic;
+- unknown-license core integration was blocked as pending evidence;
+- unknown-license reference-only handling preserved a no-copy constraint;
+- non-commercial core integration was rejected;
+- verifier constraints propagated to the final result;
+- provenance, security, lab, capability delta, rollback, private-data, and verifier gates were all exercised.
 
 ## Purpose
 
