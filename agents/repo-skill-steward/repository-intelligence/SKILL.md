@@ -44,6 +44,19 @@ For cross-repository runtime analysis:
 - enforce max-hop and max-path budgets;
 - report cycles and unreachable steps rather than silently dropping them.
 
+## Diff → impact
+
+For change-impact analysis:
+- use CodeGraph 0.20.1 `codegraph_pr_context` for repository-local git-diff evidence;
+- use `codegraph_analyze_impact` for focused single-symbol impact when needed;
+- normalize with `scripts/diff_impact_normalizer.py`;
+- map changed artifacts explicitly to process steps and contract sides;
+- propagate provider-side contract changes to consumers;
+- identify downstream repositories through verified process flows;
+- preserve local related-test evidence;
+- keep risk separate from observed/inferred confidence;
+- never include private repository source names in impact artifacts.
+
 ## Required stages
 
 1. Intake
