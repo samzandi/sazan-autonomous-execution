@@ -1,4 +1,4 @@
-version: 8
+version: 9
 verified_at: 2026-09-30
 context: C001
 
@@ -125,7 +125,8 @@ components:
   - name: sazan-lightweight-wiki-qa
     role: primary-wiki-and-repository-qa
     implementation: codegraph-plus-context-packaging-plus-sazan-reasoning
-    status: proposed-primary-pending-lab
+    status: promoted-primary
+    lab_run_id: 36744130393
     properties:
       - graph-first-evidence
       - natural-language-curated-context
@@ -139,7 +140,7 @@ components:
     role: optional-full-wiki-rag-product
     repository: AsyncFuncAI/deepwiki-open
     license: MIT
-    status: optional-reference-pending-baseline-lab
+    status: optional-full-rag-product-not-core
     capabilities:
       - adalflow-rag
       - faiss
