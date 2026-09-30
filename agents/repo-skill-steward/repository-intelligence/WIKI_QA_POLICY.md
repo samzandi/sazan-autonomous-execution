@@ -2,11 +2,19 @@
 
 Context: C001
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
 
 ## Decision
 
-The baseline Sazan Wiki/Q&A path should remain evidence-first and lightweight.
+The baseline Sazan Wiki/Q&A path is verified as evidence-first and lightweight.
+
+Verified lab run: 36744130393
+
+Lab evidence:
+- CodeGraph graph-only generated a structured architecture document with modules, hot paths, and circular-dependency reporting;
+- a natural-language repository question returned curated code context containing handle_checkout, calculate_total, and normalize_amount;
+- the existing Sazan Mermaid renderer consumed the same graph layer;
+- no external LLM API, embedding API, vector database, or user secret was required for the baseline retrieval path.
 
 Primary baseline:
 - CodeGraph-generated architecture documentation;
