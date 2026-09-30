@@ -2,7 +2,18 @@
 
 Context: C002
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
+
+Verified lab run: 36750536038
+
+Verified:
+- nine orchestration contract tests passed;
+- L0→L7 ordering was enforced;
+- analysis mode skipped L5 semantic editing;
+- a complete run reached ready-for-parent-review through the verified L7 gate;
+- constrained verifier output propagated to the final envelope;
+- private repository source identity was replaced by an opaque repository ID;
+- auto-promotion remained disabled.
 
 ## Goal
 
