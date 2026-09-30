@@ -1,0 +1,37 @@
+name: Repository Intelligence Semantic Editing Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-semantic-editing-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  semantic-editing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Run guarded semantic editing lab
+        shell: bash
+        run: bash agents/repo-skill-steward/repository-intelligence/scripts/run_semantic_editing_lab.sh
+
+      - name: Publish semantic editing evidence
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo "## Repository Intelligence Semantic Editing Lab"
+            echo
+            echo "- CodeGraph guarded the edit before and after mutation."
+            echo "- Serena 1.7.0 was pinned by immutable MIT-era commit."
+            echo "- Cross-file semantic rename and safe-delete were verified."
+            echo "- Compilation and functional validation passed."
+          } >> "$GITHUB_STEP_SUMMARY"

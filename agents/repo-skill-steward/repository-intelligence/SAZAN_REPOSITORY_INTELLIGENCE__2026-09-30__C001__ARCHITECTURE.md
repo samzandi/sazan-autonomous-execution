@@ -84,12 +84,26 @@ DeepWiki Open remains an optional self-hostable full Wiki/RAG product for persis
 ExplainGitHub remains an external reference until its implementation and license are auditable.
 
 ### L5 — Semantic Editing
-Optional external adapter: Serena.
+Primary candidate: Serena 1.7.0 pinned to immutable commit 949a27ef1e5fda1a6e7b561e777bcece345c6ffd
+License: MIT
+Status: verified and promoted as isolated provider
+Evidence: semantic editing lab run 36745934710
 
-Integration rule:
-- Treat Serena as a separately operated tool/service.
-- Do not vendor current GPL application code into the Sazan core without a deliberate licensing review.
-- Prefer stable protocol boundaries such as MCP.
+Guard model:
+- CodeGraph impact analysis before edits;
+- Serena symbol/reference-aware edit on an isolated branch/worktree;
+- tests/diagnostics after edit;
+- CodeGraph re-index and post-edit verification;
+- rollback point recorded before destructive mutation.
+
+Serena v2/current application code is GPL-3.0-or-later and is not part of the Sazan commercial core. It remains external/reference-only unless a separate licensing decision is made.
+
+Operational boundary:
+- run Serena 1.7.0 as an isolated MCP/subprocess provider, not inside the primary Sazan process;
+- CodeGraph remains the pre/post edit safety gate;
+- direct default-branch edits remain prohibited.
+
+SolidLSP remains MIT and is a future candidate for a Sazan-owned semantic editing engine if long-term independence from the frozen Serena 1.7 adapter becomes valuable.
 
 ### L6 — Reverse Engineering
 GitReverse can generate a synthetic build prompt, but it is not a substitute for architecture analysis.
