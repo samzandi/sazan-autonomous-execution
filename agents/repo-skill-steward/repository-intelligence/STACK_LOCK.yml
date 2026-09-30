@@ -1,4 +1,4 @@
-version: 3
+version: 5
 verified_at: 2026-09-30
 context: C001
 
@@ -69,10 +69,32 @@ components:
       - git-integration
 
   - name: codegraph
-    role: semantic-code-graph
+    role: primary-semantic-code-graph
     repository: codegraph-ai/CodeGraph
+    pinned_version: 0.20.1
     license: Apache-2.0
-    status: preferred-graph-candidate
+    status: promoted-primary
+    linux_x86_64_sha256: 32b26422fa5ffe0a130955b7f7df771f722b2d427d67f53f104d9907bdfb24a6
+    lab_run_id: 36740772666
+    evaluation_mode: graph-only
+    telemetry: off
+    verified:
+      symbol_search: true
+      cross_file_callers: true
+      dependency_graph: true
+      impact_analysis: true
+    evidence:
+      - 38-language-tree-sitter-parsing
+      - mcp
+      - call-graph
+      - dependency-graph
+      - impact-analysis
+      - related-test-discovery
+      - architecture-doc-generation
+      - documentation-verification
+    constraints:
+      - community-and-pro-capabilities-must-not-be-conflated
+      - pro-only-security-or-cross-project-features-are-not-core-evidence
 
   - name: gitdiagram
     role: architecture-visualization
@@ -106,6 +128,15 @@ components:
     repository: nxpatterns/gitnexus
     license: PolyForm-Noncommercial-1.0.0
     status: reference-only-no-commercial-embedding
+    benchmark_requirements:
+      - process-detection
+      - community-clustering
+      - multi-repo-registry
+      - cross-repo-contracts
+      - diff-impact
+      - token-budgeted-graph-responses
+      - graph-aware-agent-hooks
+      - optional-pdg-and-taint
 
   - name: explaingithub
     role: repository-qa-reference
@@ -118,6 +149,13 @@ context_packaging_routing:
   scoped_agent_or_mcp: code2prompt
   lightweight_python_fallback: gitingest
   run_all_three_by_default: false
+
+semantic_graph_routing:
+  primary: codegraph
+  primary_mode: graph-only
+  benchmark_reference_only: gitnexus
+  engine_abstraction_owned_by_sazan: true
+  graph_first_for_structural_relationships: true
 
 policy:
   unknown_license: reference-only

@@ -1,0 +1,147 @@
+name: Repository Intelligence Semantic Graph Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-semantic-graph-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  codegraph-community-smoke:
+    runs-on: ubuntu-latest
+    env:
+      CODEGRAPH_TELEMETRY: "off"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Create isolated semantic graph fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/codegraph-fixture"
+          mkdir -p "$fixture/core" "$fixture/service" "$fixture/api"
+          touch "$fixture/core/__init__.py" "$fixture/service/__init__.py" "$fixture/api/__init__.py"
+
+          cat > "$fixture/core/money.py" <<'PY'
+          def normalize_amount(value):
+              return round(float(value), 2)
+          PY
+
+          cat > "$fixture/service/orders.py" <<'PY'
+          from core.money import normalize_amount
+
+          def calculate_total(items):
+              subtotal = sum(items)
+              return normalize_amount(subtotal)
+          PY
+
+          cat > "$fixture/api/checkout.py" <<'PY'
+          from service.orders import calculate_total
+
+          def handle_checkout(items):
+              return calculate_total(items)
+          PY
+
+          git init -q "$fixture"
+          git -C "$fixture" config user.email "ci@example.invalid"
+          git -C "$fixture" config user.name "Sazan CI"
+          git -C "$fixture" add .
+          git -C "$fixture" commit -qm "fixture"
+
+          echo "FIXTURE=$fixture" >> "$GITHUB_ENV"
+
+      - name: Download and verify CodeGraph 0.20.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/codegraph-server"
+          curl -fsSL --retry 3 -o "$bin" \
+            https://github.com/codegraph-ai/CodeGraph/releases/download/v0.20.1/codegraph-server-linux-x64
+          echo "32b26422fa5ffe0a130955b7f7df771f722b2d427d67f53f104d9907bdfb24a6  $bin" | sha256sum -c -
+          chmod +x "$bin"
+          echo "CODEGRAPH_BIN=$bin" >> "$GITHUB_ENV"
+
+      - name: Verify symbol search
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$FIXTURE"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_symbol_search \
+            --tool-args '{"query":"normalize_amount","limit":5,"compact":true}' \
+            > "$RUNNER_TEMP/symbol-search.json"
+          grep -q "normalize_amount" "$RUNNER_TEMP/symbol-search.json"
+
+      - name: Verify callers
+        shell: bash
+        run: |
+          set -euo pipefail
+          uri="$(python3 -c 'from pathlib import Path; import os; print(Path(os.environ["FIXTURE"] + "/core/money.py").resolve().as_uri())')"
+          args="$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"line":1,"depth":2}))' "$uri")"
+          cd "$FIXTURE"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_get_callers \
+            --tool-args "$args" \
+            > "$RUNNER_TEMP/callers.json"
+          grep -q "calculate_total" "$RUNNER_TEMP/callers.json"
+
+      - name: Verify dependency graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          uri="$(python3 -c 'from pathlib import Path; import os; print(Path(os.environ["FIXTURE"] + "/service/orders.py").resolve().as_uri())')"
+          args="$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"depth":2,"direction":"imports"}))' "$uri")"
+          cd "$FIXTURE"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_get_dependency_graph \
+            --tool-args "$args" \
+            > "$RUNNER_TEMP/dependency-graph.json"
+          grep -Eq "money|core" "$RUNNER_TEMP/dependency-graph.json"
+
+      - name: Verify impact analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          uri="$(python3 -c 'from pathlib import Path; import os; print(Path(os.environ["FIXTURE"] + "/core/money.py").resolve().as_uri())')"
+          args="$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"line":1,"changeType":"modify"}))' "$uri")"
+          cd "$FIXTURE"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_analyze_impact \
+            --tool-args "$args" \
+            > "$RUNNER_TEMP/impact.json"
+          grep -q "normalize_amount" "$RUNNER_TEMP/impact.json"
+          grep -q "calculate_total" "$RUNNER_TEMP/impact.json"
+
+      - name: Emit semantic graph evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          base = Path(os.environ["RUNNER_TEMP"])
+          evidence = {
+              "codegraph_version": "0.20.1",
+              "mode": "graph-only",
+              "telemetry": "off",
+              "binary_sha256": "32b26422fa5ffe0a130955b7f7df771f722b2d427d67f53f104d9907bdfb24a6",
+              "verified": {
+                  "symbol_search": "normalize_amount" in (base / "symbol-search.json").read_text(errors="replace"),
+                  "direct_callers": "calculate_total" in (base / "callers.json").read_text(errors="replace"),
+                  "dependency_graph": any(
+                      token in (base / "dependency-graph.json").read_text(errors="replace")
+                      for token in ("money", "core")
+                  ),
+                  "impact_analysis": "calculate_total" in (base / "impact.json").read_text(errors="replace"),
+              },
+          }
+          print(json.dumps(evidence, indent=2, sort_keys=True))
+          PY
