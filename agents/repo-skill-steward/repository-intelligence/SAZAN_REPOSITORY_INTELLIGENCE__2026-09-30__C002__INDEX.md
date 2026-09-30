@@ -19,7 +19,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - diff-impact normalization — VERIFIED / PROMOTED;
 - token and output budgets — VERIFIED / PROMOTED;
 - provider fallback/health controls — VERIFIED / PROMOTED;
-- incremental state/cache strategy — IMPLEMENTED, pending lab;
+- incremental state/cache strategy — VERIFIED / PROMOTED;
 - realistic end-to-end integration lab.
 
 ## Milestone 1 — Single-repository orchestration
@@ -175,4 +175,4 @@ Model:
 - private repository source names are not required by cache metadata;
 - cache hits never bypass provider health, budgets, license/security, verifier, or parent promotion gates.
 
-Status: pending C002 incremental-cache lab.
+Status: VERIFIED — incremental-cache lab run 36763808082; 19 contract tests plus cross-revision hit/invalidation validation passed.
