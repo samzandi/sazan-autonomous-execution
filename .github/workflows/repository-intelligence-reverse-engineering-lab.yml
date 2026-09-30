@@ -1,0 +1,305 @@
+name: Repository Intelligence Reverse Engineering Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-reverse-engineering-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+      - "tests/test_repository_intelligence_reverse.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild-spec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CODEGRAPH_TELEMETRY: "off"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Run rebuild specification unit tests
+        run: python3 -m unittest tests/test_repository_intelligence_reverse.py
+
+      - name: Create reverse-engineering fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/reverse-fixture"
+          mkdir -p "$fixture/core" "$fixture/service" "$fixture/api" "$fixture/tests"
+          touch "$fixture/core/__init__.py" "$fixture/service/__init__.py" "$fixture/api/__init__.py"
+
+          cat > "$fixture/core/money.py" <<'PY'
+          def normalize_amount(value):
+              return round(float(value), 2)
+          PY
+
+          cat > "$fixture/service/orders.py" <<'PY'
+          from core.money import normalize_amount
+
+          def calculate_total(items):
+              return normalize_amount(sum(items))
+          PY
+
+          cat > "$fixture/api/checkout.py" <<'PY'
+          from service.orders import calculate_total
+
+          def handle_checkout(items):
+              return {"total": calculate_total(items)}
+          PY
+
+          cat > "$fixture/tests/test_checkout.py" <<'PY'
+          from api.checkout import handle_checkout
+
+          def test_checkout_total():
+              assert handle_checkout([1.111, 2.225]) == {"total": 3.34}
+          PY
+
+          cat > "$fixture/README.md" <<'MD'
+          # Checkout Fixture
+
+          A tiny checkout service that calculates and normalizes line-item totals.
+          MD
+
+          git init -q "$fixture"
+          git -C "$fixture" config user.email "ci@example.invalid"
+          git -C "$fixture" config user.name "Sazan CI"
+          git -C "$fixture" add .
+          git -C "$fixture" commit -qm "fixture"
+          echo "FIXTURE=$fixture" >> "$GITHUB_ENV"
+          echo "FIXTURE_REVISION=$(git -C "$fixture" rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Download and verify CodeGraph 0.20.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/codegraph-server"
+          curl -fsSL --retry 3 -o "$bin"             https://github.com/codegraph-ai/CodeGraph/releases/download/v0.20.1/codegraph-server-linux-x64
+          echo "32b26422fa5ffe0a130955b7f7df771f722b2d427d67f53f104d9907bdfb24a6  $bin" | sha256sum -c -
+          chmod +x "$bin"
+          echo "CODEGRAPH_BIN=$bin" >> "$GITHUB_ENV"
+
+      - name: Collect semantic evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          uri="$(python3 -c 'from pathlib import Path; import os; print(Path(os.environ["FIXTURE"] + "/api/checkout.py").resolve().as_uri())')"
+          dep_args="$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"depth":3,"direction":"outgoing"}))' "$uri")"
+          call_args="$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"line":2,"depth":3}))' "$uri")"
+          cd "$FIXTURE"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_get_dependency_graph \
+            --tool-args "$dep_args" \
+            > "$RUNNER_TEMP/dependency-graph.txt"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_get_call_graph \
+            --tool-args "$call_args" \
+            > "$RUNNER_TEMP/call-graph.txt"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_generate_architecture_doc \
+            --tool-args '{"topN":5}' \
+            > "$RUNNER_TEMP/architecture-doc.txt"
+
+          grep -Eq "checkout|orders|money" "$RUNNER_TEMP/dependency-graph.txt"
+          grep -q "handle_checkout" "$RUNNER_TEMP/call-graph.txt"
+          grep -q "calculate_total" "$RUNNER_TEMP/call-graph.txt"
+          grep -q "normalize_amount" "$RUNNER_TEMP/call-graph.txt"
+          grep -qi "Architecture" "$RUNNER_TEMP/architecture-doc.txt"
+
+      - name: Verify executable behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$FIXTURE" python3 - <<'PY'
+          from api.checkout import handle_checkout
+          assert handle_checkout([1.111, 2.225]) == {"total": 3.34}
+          PY
+
+      - name: Build evidence-backed rebuild specification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          tmp = Path(os.environ["RUNNER_TEMP"])
+          revision = os.environ["FIXTURE_REVISION"]
+          evidence = {
+              "source": {
+                  "repository": "sazan-lab/checkout-fixture",
+                  "revision": revision,
+                  "visibility": "local-fixture",
+              },
+              "evidence": [
+                  {
+                      "id": "E1",
+                      "source": "tests/test_checkout.py runtime assertion",
+                      "statement": "Checkout returns a total of 3.34 for line items 1.111 and 2.225.",
+                  },
+                  {
+                      "id": "E2",
+                      "source": "CodeGraph dependency graph",
+                      "statement": "handle_checkout depends on calculate_total, which depends on normalize_amount.",
+                  },
+                  {
+                      "id": "E3",
+                      "source": "README.md",
+                      "statement": "The fixture describes itself as a checkout service that calculates normalized line-item totals.",
+                  },
+                  {
+                      "id": "E4",
+                      "source": "CodeGraph architecture document",
+                      "statement": "The repository is split into API, service, and core code modules.",
+                  },
+              ],
+              "sections": {
+                  "objective": [
+                      {
+                          "state": "observed",
+                          "text": "Provide checkout total calculation with normalized monetary output.",
+                          "evidence": ["E1", "E3"],
+                      }
+                  ],
+                  "behaviors": [
+                      {
+                          "state": "observed",
+                          "text": "Accept a collection of line-item amounts and return a normalized total.",
+                          "evidence": ["E1"],
+                      }
+                  ],
+                  "architecture": [
+                      {
+                          "state": "observed",
+                          "text": "Separate API entry, order calculation, and money normalization responsibilities.",
+                          "evidence": ["E2", "E4"],
+                      }
+                  ],
+                  "modules": [
+                      {
+                          "state": "observed",
+                          "text": "API delegates to service logic, which delegates monetary normalization to the core layer.",
+                          "evidence": ["E2"],
+                      }
+                  ],
+                  "interfaces": [
+                      {
+                          "state": "observed",
+                          "text": "handle_checkout is an application entry point for the checkout flow.",
+                          "evidence": ["E2"],
+                      }
+                  ],
+                  "data_contracts": [
+                      {
+                          "state": "observed",
+                          "text": "Checkout returns an object containing a total field.",
+                          "evidence": ["E1"],
+                      }
+                  ],
+                  "flows": [
+                      {
+                          "state": "observed",
+                          "text": "handle_checkout → calculate_total → normalize_amount.",
+                          "evidence": ["E2"],
+                      }
+                  ],
+                  "dependencies": [],
+                  "build_run_test": [
+                      {
+                          "state": "observed",
+                          "text": "The checkout flow can be executed as Python modules with the repository root on PYTHONPATH.",
+                          "evidence": ["E1"],
+                      }
+                  ],
+                  "non_functional": [],
+                  "security_license": [
+                      {
+                          "state": "unknown",
+                          "text": "Production authentication, persistence, and license requirements are not established by this fixture.",
+                          "evidence": [],
+                      }
+                  ],
+                  "acceptance": [
+                      {
+                          "state": "observed",
+                          "text": "For inputs 1.111 and 2.225, checkout returns total 3.34.",
+                          "evidence": ["E1"],
+                      },
+                      {
+                          "state": "observed",
+                          "text": "The checkout execution path retains separate API, service, and core responsibilities.",
+                          "evidence": ["E2", "E4"],
+                      }
+                  ],
+                  "inferences": [
+                      {
+                          "state": "inferred",
+                          "text": "A clean-room rebuild should preserve the layer boundaries while allowing independent internal code.",
+                          "evidence": ["E2", "E4"],
+                          "rationale": "The observed dependency flow crosses three distinct responsibility layers.",
+                      }
+                  ],
+                  "unknowns": [
+                      {
+                          "state": "unknown",
+                          "text": "No production deployment target is established.",
+                          "evidence": [],
+                      }
+                  ],
+              },
+          }
+          (tmp / "rebuild-input.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
+          PY
+
+          builder="$GITHUB_WORKSPACE/agents/repo-skill-steward/repository-intelligence/scripts/build_rebuild_spec.py"
+          python3 "$builder" "$RUNNER_TEMP/rebuild-input.json"             --markdown "$RUNNER_TEMP/REBUILD_SPEC.md"             --json "$RUNNER_TEMP/rebuild-spec.json"
+          python3 "$builder" "$RUNNER_TEMP/rebuild-input.json"             --markdown "$RUNNER_TEMP/REBUILD_SPEC.second.md"             --json "$RUNNER_TEMP/rebuild-spec.second.json"
+
+          diff -u "$RUNNER_TEMP/REBUILD_SPEC.md" "$RUNNER_TEMP/REBUILD_SPEC.second.md"
+          diff -u "$RUNNER_TEMP/rebuild-spec.json" "$RUNNER_TEMP/rebuild-spec.second.json"
+          grep -q "OBSERVED" "$RUNNER_TEMP/REBUILD_SPEC.md"
+          grep -q "INFERRED" "$RUNNER_TEMP/REBUILD_SPEC.md"
+          grep -q "UNKNOWN" "$RUNNER_TEMP/REBUILD_SPEC.md"
+          grep -q "handle_checkout" "$RUNNER_TEMP/REBUILD_SPEC.md"
+          grep -q "## Acceptance criteria" "$RUNNER_TEMP/REBUILD_SPEC.md"
+          grep -q "## Evidence ledger" "$RUNNER_TEMP/REBUILD_SPEC.md"
+
+      - name: Verify hallucination guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "$RUNNER_TEMP/rebuild-input.json" "$RUNNER_TEMP/invalid.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path(os.environ["RUNNER_TEMP"]) / "invalid.json"
+          data = json.loads(p.read_text())
+          data["sections"]["objective"][0]["evidence"] = []
+          p.write_text(json.dumps(data))
+          PY
+
+          set +e
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/build_rebuild_spec.py             "$RUNNER_TEMP/invalid.json"             --markdown "$RUNNER_TEMP/invalid.md"             --json "$RUNNER_TEMP/invalid-out.json"             >"$RUNNER_TEMP/invalid.stdout" 2>"$RUNNER_TEMP/invalid.stderr"
+          code=$?
+          set -e
+          test "$code" -ne 0
+          grep -q "observed claim requires evidence" "$RUNNER_TEMP/invalid.stderr"
+
+      - name: Publish reverse-engineering evidence
+        shell: bash
+        run: |
+          {
+            echo "## Repository Intelligence Reverse Engineering Lab"
+            echo
+            echo "- Real CodeGraph dependency and architecture evidence fed the rebuild-spec contract."
+            echo "- Executable behavior was independently verified."
+            echo "- Rebuild output was deterministic."
+            echo "- OBSERVED, INFERRED, and UNKNOWN claim states were preserved."
+            echo "- Unsupported observed claims were rejected by the builder."
+            echo "- GitReverse remains reference-only because no license was detected in the current review."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -51,12 +51,21 @@ Use when a repository must be evaluated, reverse engineered, compared, documente
    - Extract concepts, interfaces, algorithms, tests, UX patterns, and architectural techniques.
    - Prefer reimplementation from documented behavior when copying code would create licensing or coupling risk.
 
-8. Verification
+8. Reverse engineering
+   - Route rebuild work through the Reverse Engineering sub-agent.
+   - Build a clean-room specification from evidence produced by earlier layers.
+   - Classify each material claim as observed, inferred, or unknown.
+   - Observed claims require evidence IDs; inferred claims require evidence plus rationale.
+   - Require acceptance criteria and preserve unresolved questions.
+   - GitReverse is reference-only and must not be treated as authoritative reconstruction evidence.
+
+9. Verification
    - Require source citations/evidence, reproducible checks, and a rollback path.
    - Compare claims against repository code or canonical documentation.
+   - The verifier must reject unsupported observed claims and hidden assumptions.
 
-9. Output
-   - Produce an evidence package with: purpose, architecture, dependencies, license, security notes, strengths, limitations, reusable capabilities, rejected items, and recommended next action.
+10. Output
+   - Produce an evidence package with: purpose, architecture, dependencies, license, security notes, strengths, limitations, reusable capabilities, rejected items, rebuild specification, evidence ledger, and recommended next action.
 
 ## Promotion rule
 

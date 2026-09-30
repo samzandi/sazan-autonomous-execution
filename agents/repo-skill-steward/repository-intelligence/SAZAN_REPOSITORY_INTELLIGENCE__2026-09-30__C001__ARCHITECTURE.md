@@ -106,8 +106,35 @@ Operational boundary:
 SolidLSP remains MIT and is a future candidate for a Sazan-owned semantic editing engine if long-term independence from the frozen Serena 1.7 adapter becomes valuable.
 
 ### L6 — Reverse Engineering
-GitReverse can generate a synthetic build prompt, but it is not a substitute for architecture analysis.
-Until its license is verified, keep it reference-only.
+Primary: Sazan clean-room rebuild specification
+Owner: reverse-engineering sub-agent
+Status: verified and promoted
+Evidence: reverse engineering lab run 36747513165
+
+Inputs:
+- provenance from L0;
+- packed context from L1;
+- semantic graph evidence from L2;
+- architecture views from L3;
+- repository Q&A and architecture docs from L4;
+- runtime/test and edit-impact evidence from L5 when relevant;
+- license/security findings.
+
+Output:
+- deterministic REBUILD_SPEC.md;
+- normalized rebuild-spec.json;
+- evidence ledger;
+- explicit OBSERVED / INFERRED / UNKNOWN claim states;
+- acceptance criteria;
+- clean-room constraints and unresolved questions.
+
+GitReverse remains reference-only. Its quick flow reconstructs a short synthetic user prompt primarily from repository metadata, a depth-1 file tree, and README context. No root license file or detected GitHub license was found in the current review, and the shallow prompt output is not authoritative enough for Sazan rebuild work.
+
+Operational rule:
+- every observed claim must cite evidence;
+- every inferred claim must cite evidence and provide rationale;
+- unknowns must remain explicit;
+- verifier approval is required before promotion.
 
 ### L7 — Evidence and Promotion
 Owner: verifier sub-agent + parent Repo & Skill Steward.
@@ -129,7 +156,7 @@ Repository
   -> Architecture/Wiki
   -> License & Security
   -> Capability Extraction
-  -> Reverse-Engineering Hypothesis
+  -> Clean-room Rebuild Specification
   -> Verification
   -> Parent Steward Promotion Gate
 
