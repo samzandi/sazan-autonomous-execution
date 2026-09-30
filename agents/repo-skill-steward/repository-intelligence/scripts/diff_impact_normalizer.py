@@ -101,6 +101,20 @@ def _strings(value: Any, name: str) -> list[str]:
     return sorted(set(x.strip() for x in items))
 
 
+def _ordered_strings(value: Any, name: str) -> list[str]:
+    items = _list(value, name)
+    if not all(isinstance(x, str) and x.strip() for x in items):
+        raise ValueError(f"{name} must contain non-empty strings")
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        text = item.strip()
+        if text not in seen:
+            seen.add(text)
+            out.append(text)
+    return out
+
+
 def _normalize_contract_touch(
     raw: dict[str, Any],
     where: str,
@@ -352,8 +366,8 @@ def normalize(
 
         for flow in flow_records:
             flow_id = _text(flow.get("flow_id"), "flow.flow_id")
-            path_steps = _strings(flow.get("steps"), f"{flow_id}.steps")
-            edge_ids = _strings(flow.get("edge_ids"), f"{flow_id}.edge_ids")
+            path_steps = _ordered_strings(flow.get("steps"), f"{flow_id}.steps")
+            edge_ids = _ordered_strings(flow.get("edge_ids"), f"{flow_id}.edge_ids")
             impact_positions: list[int] = []
 
             for sid in impacted_steps:
