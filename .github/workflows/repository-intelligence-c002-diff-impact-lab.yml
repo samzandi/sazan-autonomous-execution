@@ -24,7 +24,7 @@ jobs:
 
       - name: Compile and test normalizer
         run: |
-          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalizer.py
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py
           python3 -m unittest tests/test_repository_intelligence_diff_impact.py
 
       - name: Create real git diff fixture
@@ -238,7 +238,7 @@ jobs:
           (tmp / "changes.json").write_text(json.dumps(changes, indent=2))
           PY
 
-          python3 agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalizer.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/flows.json"             "$RUNNER_TEMP/changes.json"             --json "$RUNNER_TEMP/impact.json"             --markdown "$RUNNER_TEMP/IMPACT.md"             --require-impact
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/diff_impact_normalize.py             "$RUNNER_TEMP/registry.json"             "$RUNNER_TEMP/contracts.json"             "$RUNNER_TEMP/flows.json"             "$RUNNER_TEMP/changes.json"             --json "$RUNNER_TEMP/impact.json"             --markdown "$RUNNER_TEMP/IMPACT.md"             --require-impact
 
           grep -q '"risk_level": "high"' "$RUNNER_TEMP/impact.json"
           grep -q '"repository_id": "web"' "$RUNNER_TEMP/impact.json"
