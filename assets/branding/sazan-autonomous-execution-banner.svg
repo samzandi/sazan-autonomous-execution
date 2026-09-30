@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800" role="img" aria-labelledby="title desc">
+<title id="title">Sazan Autonomous Execution</title>
+<desc id="desc">Sazan metallic S child-brand banner for autonomous orchestration, agents, skills and execution.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#020407"/>
+    <stop offset=".48" stop-color="#070b10"/>
+    <stop offset="1" stop-color="#000204"/>
+  </linearGradient>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#f7f9fb"/>
+    <stop offset=".18" stop-color="#9ca6b1"/>
+    <stop offset=".42" stop-color="#ffffff"/>
+    <stop offset=".62" stop-color="#59636d"/>
+    <stop offset=".82" stop-color="#d9dee4"/>
+    <stop offset="1" stop-color="#6d7680"/>
+  </linearGradient>
+  <linearGradient id="metal2" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#5c6670"/>
+    <stop offset=".45" stop-color="#e8edf1"/>
+    <stop offset="1" stop-color="#8c97a2"/>
+  </linearGradient>
+  <radialGradient id="orb">
+    <stop offset="0" stop-color="#ffffff"/>
+    <stop offset=".18" stop-color="#9de4ff"/>
+    <stop offset=".48" stop-color="#159bff"/>
+    <stop offset=".72" stop-color="#0058b7"/>
+    <stop offset="1" stop-color="#001226"/>
+  </radialGradient>
+  <filter id="blueGlow" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur stdDeviation="8" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur stdDeviation="16"/>
+  </filter>
+  <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+    <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#000" flood-opacity=".75"/>
+  </filter>
+</defs>
+
+<rect width="1600" height="800" fill="url(#bg)"/>
+<ellipse cx="800" cy="760" rx="680" ry="34" fill="#0b74c9" opacity=".12" filter="url(#softGlow)"/>
+
+<!-- orbital execution geometry -->
+<g fill="none" stroke="#6f7c88" opacity=".55">
+  <circle cx="360" cy="380" r="245" stroke-width="2"/>
+  <circle cx="360" cy="380" r="205" stroke-width="1.5"/>
+  <circle cx="360" cy="380" r="165" stroke-width="1"/>
+</g>
+<g fill="none" stroke="#178dff" opacity=".85" filter="url(#blueGlow)">
+  <path d="M115 380 H222"/>
+  <path d="M475 268 C560 268 550 210 625 210 H735"/>
+  <path d="M475 330 H676"/>
+  <path d="M476 392 H750"/>
+  <path d="M487 455 C560 455 575 500 650 500 H742"/>
+  <path d="M360 105 V155"/>
+  <path d="M360 605 V690"/>
+</g>
+<g fill="url(#orb)" stroke="#9fdcff" stroke-width="2">
+  <circle cx="115" cy="380" r="11"/>
+  <circle cx="360" cy="155" r="13"/>
+  <circle cx="360" cy="605" r="11"/>
+  <circle cx="625" cy="210" r="12"/>
+  <circle cx="676" cy="330" r="10"/>
+  <circle cx="750" cy="392" r="9"/>
+  <circle cx="650" cy="500" r="11"/>
+</g>
+<g fill="#41b6ff" filter="url(#blueGlow)">
+  <path d="M735 202 l18 8 -18 8 6-8z"/>
+  <path d="M676 322 l18 8 -18 8 6-8z"/>
+  <path d="M750 384 l21 8 -21 8 7-8z"/>
+</g>
+
+<!-- mother S / execution child emblem -->
+<g filter="url(#shadow)">
+  <text x="176" y="520" font-family="Arial Black,Arial,sans-serif" font-size="430" font-weight="900" font-style="italic" fill="url(#metal)" stroke="#111820" stroke-width="8">S</text>
+  <path d="M235 515 C294 477 352 435 407 378 C441 343 465 312 492 263" fill="none" stroke="#111820" stroke-width="34" opacity=".95"/>
+  <path d="M238 511 C298 471 356 428 411 372 C445 337 467 306 495 256" fill="none" stroke="#1b9dff" stroke-width="10" filter="url(#blueGlow)"/>
+  <path d="M241 506 C300 468 359 423 414 368" fill="none" stroke="#aee9ff" stroke-width="2.5" opacity=".9"/>
+</g>
+
+<!-- execution nodes -->
+<g fill="none" stroke="#7ed2ff" opacity=".78">
+  <circle cx="618" cy="210" r="28"/>
+  <circle cx="670" cy="330" r="25"/>
+  <circle cx="646" cy="500" r="26"/>
+</g>
+
+<!-- wordmark -->
+<g filter="url(#shadow)">
+  <text x="790" y="355" font-family="Arial Black,Arial,sans-serif" font-size="132" font-weight="900" letter-spacing="12" fill="url(#metal2)">SAZAN</text>
+  <rect x="800" y="376" width="735" height="2" rx="1" fill="#147dcd" opacity=".55"/>
+  <circle cx="1135" cy="377" r="5" fill="#32b8ff" filter="url(#blueGlow)"/>
+  <text x="796" y="455" font-family="Arial,Helvetica,sans-serif" font-size="48" font-weight="700" letter-spacing="11" fill="#e7e9ec">AUTONOMOUS EXECUTION</text>
+  <line x1="800" y1="505" x2="1535" y2="505" stroke="#4b5762" stroke-width="1"/>
+  <line x1="1020" y1="505" x2="1315" y2="505" stroke="#178dff" stroke-width="2"/>
+  <circle cx="1168" cy="505" r="6" fill="#41b6ff" filter="url(#blueGlow)"/>
+  <text x="804" y="565" font-family="Arial,Helvetica,sans-serif" font-size="28" letter-spacing="4" fill="#c9ced4">Autonomous Orchestration</text>
+  <circle cx="1178" cy="556" r="5" fill="#159bff"/>
+  <text x="1200" y="565" font-family="Arial,Helvetica,sans-serif" font-size="28" letter-spacing="4" fill="#c9ced4">Agents</text>
+  <circle cx="1345" cy="556" r="5" fill="#159bff"/>
+  <text x="1367" y="565" font-family="Arial,Helvetica,sans-serif" font-size="28" letter-spacing="4" fill="#c9ced4">Skills</text>
+  <circle cx="1496" cy="556" r="5" fill="#159bff"/>
+</g>
+
+<text x="800" y="640" font-family="Arial,Helvetica,sans-serif" font-size="22" letter-spacing="5" fill="#6d7884">EXECUTION • EVIDENCE • RECOVERY • CONTINUATION</text>
+</svg>
