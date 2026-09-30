@@ -88,13 +88,26 @@ jobs:
         run: |
           set -euo pipefail
           uri="$(python3 -c 'from pathlib import Path; import os; print(Path(os.environ["FIXTURE"] + "/api/checkout.py").resolve().as_uri())')"
-          args="$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"depth":3,"direction":"imports"}))' "$uri")"
+          dep_args="$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"depth":3,"direction":"outgoing"}))' "$uri")"
+          call_args="$(python3 -c 'import json,sys; print(json.dumps({"uri":sys.argv[1],"line":2,"depth":3}))' "$uri")"
           cd "$FIXTURE"
-          "$CODEGRAPH_BIN" --graph-only             --run-tool codegraph_get_dependency_graph             --tool-args "$args"             > "$RUNNER_TEMP/dependency-graph.txt"
-          "$CODEGRAPH_BIN" --graph-only             --run-tool codegraph_generate_architecture_doc             --tool-args '{"topN":5}'             > "$RUNNER_TEMP/architecture-doc.txt"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_get_dependency_graph \
+            --tool-args "$dep_args" \
+            > "$RUNNER_TEMP/dependency-graph.txt"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_get_call_graph \
+            --tool-args "$call_args" \
+            > "$RUNNER_TEMP/call-graph.txt"
+          "$CODEGRAPH_BIN" --graph-only \
+            --run-tool codegraph_generate_architecture_doc \
+            --tool-args '{"topN":5}' \
+            > "$RUNNER_TEMP/architecture-doc.txt"
 
-          grep -q "calculate_total" "$RUNNER_TEMP/dependency-graph.txt"
-          grep -q "normalize_amount" "$RUNNER_TEMP/dependency-graph.txt"
+          grep -Eq "checkout|orders|money" "$RUNNER_TEMP/dependency-graph.txt"
+          grep -q "handle_checkout" "$RUNNER_TEMP/call-graph.txt"
+          grep -q "calculate_total" "$RUNNER_TEMP/call-graph.txt"
+          grep -q "normalize_amount" "$RUNNER_TEMP/call-graph.txt"
           grep -qi "Architecture" "$RUNNER_TEMP/architecture-doc.txt"
 
       - name: Verify executable behavior
