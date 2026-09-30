@@ -1,4 +1,4 @@
-version: 5
+version: 7
 verified_at: 2026-09-30
 context: C001
 
@@ -96,11 +96,31 @@ components:
       - community-and-pro-capabilities-must-not-be-conflated
       - pro-only-security-or-cross-project-features-are-not-core-evidence
 
+  - name: sazan-mermaid-renderer
+    role: primary-architecture-presentation
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/render_architecture_mermaid.py
+    license: repository-license
+    status: promoted-primary
+    lab_run_id: 36742665729
+    properties:
+      - deterministic
+      - stdlib-python-only
+      - no-network
+      - no-api-keys
+      - bounded-output
+      - sanitized-labels
+      - stable-node-identifiers
+      - external-nodes-excluded-by-default
+
   - name: gitdiagram
-    role: architecture-visualization
+    role: optional-external-architecture-visualization
     repository: ahmedkhaleel2004/gitdiagram
     license: MIT
-    status: evaluate-for-promotion
+    status: optional-reference-not-core
+    constraints:
+      - full-self-host-stack-requires-bun-nextjs-r2-upstash-and-ai-provider
+      - hosted-private-repository-use-requires-explicit-authorization
+      - must-not-be-required-for-core-repository-intelligence
 
   - name: deepwiki-open
     role: wiki-and-repository-qa
@@ -156,6 +176,12 @@ semantic_graph_routing:
   benchmark_reference_only: gitnexus
   engine_abstraction_owned_by_sazan: true
   graph_first_for_structural_relationships: true
+
+architecture_presentation_routing:
+  primary: sazan-mermaid-renderer
+  optional_external: gitdiagram
+  private_repo_external_default: false
+  provider_independent_contract: true
 
 policy:
   unknown_license: reference-only
