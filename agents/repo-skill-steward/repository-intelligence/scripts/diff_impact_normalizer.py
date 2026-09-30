@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import unquote, urlparse
 
 
 SCHEMA_VERSION = 1
@@ -49,16 +51,34 @@ def _claim(raw: dict[str, Any], where: str) -> tuple[str, list[str], str]:
     return state, sorted(set(x.strip() for x in evidence)), rationale
 
 
-def _repo_ids(registry: dict[str, Any]) -> set[str]:
-    ids: set[str] = set()
+def _repo_map(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    repos: dict[str, dict[str, Any]] = {}
     for i, raw in enumerate(_list(registry.get("repositories"), "registry.repositories")):
         if not isinstance(raw, dict):
             raise ValueError(f"registry.repositories[{i}] must be an object")
         rid = _text(raw.get("repository_id"), f"registry.repositories[{i}].repository_id")
-        if rid in ids:
+        if rid in repos:
             raise ValueError(f"duplicate repository_id: {rid}")
-        ids.add(rid)
-    return ids
+        repos[rid] = raw
+    return repos
+
+
+def _safe_location(value: str, repository_root: str | None, private: bool) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    parsed = urlparse(raw)
+    path_text = unquote(parsed.path) if parsed.scheme == "file" else raw
+    candidate = Path(path_text)
+    if repository_root:
+        try:
+            return candidate.resolve().relative_to(Path(repository_root).resolve()).as_posix()
+        except (ValueError, OSError):
+            pass
+    if private and candidate.is_absolute():
+        digest = hashlib.sha256(path_text.encode("utf-8")).hexdigest()[:10]
+        return f"private-path-{digest}/{candidate.name}"
+    return PurePosixPath(path_text.replace("\\", "/")).as_posix()
 
 
 def _contract_map(contracts: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -132,7 +152,8 @@ def normalize(
         if payload.get("workspace_id") != workspace_id:
             raise ValueError(f"workspace_id mismatch: {name}")
 
-    repo_ids = _repo_ids(registry)
+    repos = _repo_map(registry)
+    repo_ids = set(repos)
     contract_by_id = _contract_map(contracts)
 
     steps: dict[str, dict[str, Any]] = {}
@@ -202,8 +223,18 @@ def normalize(
 
         local_evidence = _strings(local.get("evidence"), f"{where}.local_impact.evidence")
         local_symbols = _strings(local.get("symbols"), f"{where}.local_impact.symbols")
-        local_files = _strings(local.get("files"), f"{where}.local_impact.files")
-        related_tests = _strings(local.get("tests"), f"{where}.local_impact.tests")
+        private_repo = repos[repository_id].get("visibility") in {"private", "internal"}
+        repository_root = str(local.get("repository_root", "")).strip() or None
+        local_files = sorted({
+            _safe_location(x, repository_root, private_repo)
+            for x in _strings(local.get("files"), f"{where}.local_impact.files")
+            if _safe_location(x, repository_root, private_repo)
+        })
+        related_tests = sorted({
+            _safe_location(x, repository_root, private_repo)
+            for x in _strings(local.get("tests"), f"{where}.local_impact.tests")
+            if _safe_location(x, repository_root, private_repo)
+        })
         direct_callers = _strings(local.get("direct_callers"), f"{where}.local_impact.direct_callers")
 
         risk_level = str(local.get("risk_level", "not-provided")).strip() or "not-provided"
