@@ -32,8 +32,48 @@ Required terminal state:
 - VERIFIED with reproducible evidence, or
 - BLOCKED with explicit reason and no promotion.
 
-Status: PLANNED.
+Status: BLOCKED — implementation exists in PR #29; live Codex 0.159.2 reached gpt-5.6-sol execution but OpenAI API quota is exhausted. Promotion is forbidden until a verified rerun completes.
 
 ## Carried invariants
 
 All C002 constraints remain binding. C003 may add runtime adapters and evidence, but it may not weaken promotion, privacy, licensing, security, provider-routing, budget, cache, or rollback controls.
+
+
+## Milestone 2 — Claude Code runtime proof
+
+Goal:
+- execute the promoted Repository Intelligence flow through an authorized Claude Code runtime;
+- preserve the same parent-review, privacy, workspace-integrity, and deterministic-baseline guarantees used by the Codex proof;
+- capture runtime model/version, evidence, and independent validation;
+- support either ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN without persisting either secret.
+
+Current evidence:
+- implementation: PR #30;
+- workflow run: 36767883113;
+- checkout: PASSED;
+- authentication preflight: BLOCKED because neither supported Claude credential is configured;
+- live Claude execution: NOT STARTED;
+- merge/promotion: forbidden while blocked.
+
+Status: BLOCKED — external Claude authentication is required.
+
+## Milestone 3 — Runtime / provider contract parity
+
+Implementation:
+- `scripts/runtime_contract_parity.py`;
+- `tests/test_repository_intelligence_c003_runtime_parity.py`;
+- `C003_RUNTIME_CONTRACT_PARITY.md`;
+- `.github/workflows/repository-intelligence-c003-runtime-parity-lab.yml`.
+
+Model:
+- both provider reports must already be VERIFIED;
+- both must target the same repository HEAD;
+- both must use the same deterministic C002 baseline SHA-256;
+- both must preserve `ready-for-parent-review`;
+- privacy, workspace integrity, evidence presence, and sensitive-marker checks must pass;
+- provider-specific model, CLI version, action commit, and proof fingerprint may differ;
+- any blocker or invariant mismatch fails closed.
+
+Engine status: VERIFIED / PROMOTED — workflow run 36768157558; all repository regressions passed; PR #31 merged as commit 9f25127b019ae42c58d5beda56f7860dcb24f1f8.
+
+Live parity verdict: BLOCKED until Milestone 1 and Milestone 2 both produce verified proofs on the same revision and deterministic baseline.
