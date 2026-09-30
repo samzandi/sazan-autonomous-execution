@@ -93,7 +93,7 @@ Status: VERIFIED — process-flow lab run 36753107333; 11 contract tests plus en
 ## Milestone 4 — Diff → Impact normalization
 
 Implementation:
-- `scripts/diff_impact_normalizer.py`;
+- `scripts/diff_impact_normalize.py`;
 - `C002_DIFF_IMPACT_CONTRACT.md`;
 - diff-impact unit tests;
 - real `git diff → CodeGraph pr_context → cross-repo impact` integration lab.
