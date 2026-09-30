@@ -58,21 +58,33 @@ Primary evidence sources are the pinned CodeGraph Community 0.20.1 tools:
 
 File/symbol changes should carry local semantic-impact evidence produced by these graph queries.
 
-Supported mappings:
+Supported local-impact evidence:
 - impacted process-step IDs;
 - impacted symbol names;
+- affected files;
+- related tests;
+- direct callers when available;
+- local risk level reported by the semantic-impact provider;
 - evidence references.
 
+Sazan preserves the provider's local risk level but does not synthesize a new global risk score from change type alone.
 A filename alone is not sufficient to claim downstream impact.
 
 ## Contract impact
 
 API/event/schema/package/etc. changes bind to a concrete matched contract ID.
 
+A local code change may also declare explicit `contract_touches` when evidence shows that the changed symbol/file implements or consumes a registered cross-repository surface. Each touch records:
+- contract ID;
+- provider / consumer / both side;
+- observed or inferred state;
+- evidence;
+- rationale when inferred.
+
 The normalizer then:
-- marks both contract parties for review;
+- marks both contract parties for review when a contract surface is touched;
 - locates process-flow edges using that contract;
-- propagates downstream impact through complete runtime flows;
+- propagates runtime impact from the earliest affected step/contract boundary through complete flows;
 - records affected flows and factual test/review scope.
 
 For version-change observations, the new provider version is compared with the recorded consumer requirement.
@@ -101,14 +113,20 @@ A file change without local semantic-impact evidence also produces `partial-evid
 
 This prevents an unknown blast radius from being presented as complete.
 
-## Test/review scope
+## Risk, confidence, and test/review scope
+
+These are separate dimensions:
+- local risk — preserved from CodeGraph or another local semantic-impact provider;
+- evidence confidence — observed or inferred;
+- blast radius — repositories/contracts/flows/steps requiring review.
 
 The normalizer emits factual review targets:
 - impacted repositories;
 - touched contracts;
-- impacted end-to-end flows.
+- impacted end-to-end flows;
+- related tests preserved from local semantic-impact evidence.
 
-It does not assign speculative numeric risk scores.
+It does not invent a global risk score from filename count, repository count, or change type.
 
 ## Privacy
 
