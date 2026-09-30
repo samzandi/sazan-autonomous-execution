@@ -52,7 +52,11 @@ Change types:
 
 ## Local semantic impact
 
-File/symbol changes should carry local semantic-impact evidence produced by tools such as CodeGraph.
+Primary evidence sources are the pinned CodeGraph Community 0.20.1 tools:
+- `codegraph_pr_context` for a real branch diff against a base branch;
+- `codegraph_analyze_impact` for focused symbol-level callers/references before or around a specific change.
+
+File/symbol changes should carry local semantic-impact evidence produced by these graph queries.
 
 Supported mappings:
 - impacted process-step IDs;
