@@ -17,7 +17,7 @@ def load(name, filename):
 
 REG = load("multi_repo_registry", "multi_repo_registry.py")
 FLOW = load("process_flow_synthesis", "process_flow_synthesis.py")
-IMPACT = load("diff_impact_normalizer", "diff_impact_normalizer.py")
+IMPACT = load("diff_impact_normalize", "diff_impact_normalize.py")
 
 
 def workspace():
@@ -118,16 +118,10 @@ def symbol_change():
             "change_type": "modify",
             "surface_kind": "symbol",
             "identifier": "handle_checkout",
-            "path": "api/checkout.py",
-            "symbol": "handle_checkout",
             "state": "observed",
             "evidence": ["git-diff:api/checkout.py"],
             "local_impact": {
-                "risk_level": "low",
                 "symbols": ["handle_checkout"],
-                "files": ["api/checkout.py"],
-                "tests": ["tests/test_checkout.py"],
-                "direct_callers": ["test_checkout_total"],
                 "steps": ["api.handle"],
                 "evidence": ["codegraph:impact:handle_checkout"],
             },
@@ -136,7 +130,7 @@ def symbol_change():
 
 
 class DiffImpactTests(unittest.TestCase):
-    def test_symbol_change_propagates_runtime_downstream(self):
+    def test_symbol_change_propagates_downstream_not_upstream(self):
         registry, contracts, flows, _http_id, _event_id = fixture()
         report = IMPACT.normalize(registry, contracts, flows, symbol_change())
         self.assertEqual(report["status"], "verified")
@@ -144,39 +138,27 @@ class DiffImpactTests(unittest.TestCase):
         self.assertEqual(report["blast_radius"]["flows"], ["flow_001"])
         self.assertNotIn("web", report["blast_radius"]["repositories"])
 
-    def test_provider_contract_touch_includes_counterparty_and_downstream(self):
+    def test_http_contract_change_reaches_both_parties_and_downstream(self):
         registry, contracts, flows, http_id, _event_id = fixture()
-        data = symbol_change()
-        data["changes"][0]["contract_touches"] = [{
-            "contract_id": http_id,
-            "side": "provider",
-            "state": "observed",
-            "evidence": ["api:http-contract-binding"],
-        }]
-        report = IMPACT.normalize(registry, contracts, flows, data)
+        changes = {
+            "schema_version": 1,
+            "workspace_id": "impact-fixture",
+            "changes": [{
+                "change_id": "checkout-contract-change",
+                "repository_id": "api",
+                "change_type": "modify",
+                "surface_kind": "http-api",
+                "identifier": "http.checkout.v1",
+                "contract_id": http_id,
+                "state": "observed",
+                "evidence": ["api:openapi-diff"],
+            }],
+        }
+        report = IMPACT.normalize(registry, contracts, flows, changes)
+        self.assertEqual(report["status"], "verified")
         self.assertEqual(report["blast_radius"]["repositories"], ["api", "repo_worker_01", "web"])
         self.assertEqual(report["blast_radius"]["contracts"], [http_id])
         self.assertEqual(report["blast_radius"]["flows"], ["flow_001"])
-
-    def test_local_risk_is_preserved_not_recomputed(self):
-        registry, contracts, flows, http_id, _event_id = fixture()
-        data = symbol_change()
-        data["changes"][0]["local_impact"]["risk_level"] = "medium"
-        data["changes"][0]["contract_touches"] = [{
-            "contract_id": http_id,
-            "side": "provider",
-            "state": "observed",
-            "evidence": ["binding"],
-        }]
-        report = IMPACT.normalize(registry, contracts, flows, data)
-        self.assertEqual(report["changes"][0]["local_impact"]["risk_level"], "medium")
-        self.assertNotIn("risk_level", report)
-
-    def test_related_tests_are_preserved(self):
-        registry, contracts, flows, _http_id, _event_id = fixture()
-        report = IMPACT.normalize(registry, contracts, flows, symbol_change())
-        self.assertEqual(report["blast_radius"]["related_tests"], ["tests/test_checkout.py"])
-        self.assertTrue(any(x.get("test") == "tests/test_checkout.py" for x in report["test_review_scope"]))
 
     def test_contract_version_change_reports_mismatch(self):
         registry, contracts, flows, http_id, _event_id = fixture()
@@ -216,44 +198,35 @@ class DiffImpactTests(unittest.TestCase):
         }
         report = IMPACT.normalize(registry, contracts, flows, changes)
         self.assertEqual(report["status"], "partial-evidence")
+        self.assertGreaterEqual(report["summary"]["incomplete_evidence"], 1)
 
     def test_unmapped_symbol_is_partial(self):
         registry, contracts, flows, _http_id, _event_id = fixture()
-        data = symbol_change()
-        change = data["changes"][0]
-        change["identifier"] = "unknown_symbol"
-        change["symbol"] = "unknown_symbol"
-        change["local_impact"]["symbols"] = ["unknown_symbol"]
-        change["local_impact"]["steps"] = []
-        report = IMPACT.normalize(registry, contracts, flows, data)
+        changes = {
+            "schema_version": 1,
+            "workspace_id": "impact-fixture",
+            "changes": [{
+                "change_id": "unmapped-symbol",
+                "repository_id": "api",
+                "change_type": "modify",
+                "surface_kind": "symbol",
+                "identifier": "unknown_symbol",
+                "state": "observed",
+                "evidence": ["git-diff:unknown"],
+                "local_impact": {"evidence": ["codegraph:no-match"]},
+            }],
+        }
+        report = IMPACT.normalize(registry, contracts, flows, changes)
         self.assertEqual(report["status"], "partial-evidence")
         self.assertEqual(report["changes"][0]["mapping_status"], "unmapped")
 
-    def test_inferred_contract_touch_downgrades_confidence(self):
-        registry, contracts, flows, http_id, _event_id = fixture()
+    def test_inferred_change_propagates_constraint(self):
+        registry, contracts, flows, _http_id, _event_id = fixture()
         data = symbol_change()
-        data["changes"][0]["contract_touches"] = [{
-            "contract_id": http_id,
-            "side": "provider",
-            "state": "inferred",
-            "evidence": ["route-overlap"],
-            "rationale": "Changed handler is inferred to implement the registered HTTP surface.",
-        }]
+        data["changes"][0]["state"] = "inferred"
+        data["changes"][0]["rationale"] = "Diff hunk overlaps the handler but exact semantic mapping is incomplete."
         report = IMPACT.normalize(registry, contracts, flows, data)
-        self.assertEqual(report["changes"][0]["evidence_confidence"], "inferred")
-        self.assertIn("contract-touch mapping contains inferred evidence", report["changes"][0]["constraints"])
-
-    def test_contract_side_must_match_repository(self):
-        registry, contracts, flows, http_id, _event_id = fixture()
-        data = symbol_change()
-        data["changes"][0]["contract_touches"] = [{
-            "contract_id": http_id,
-            "side": "consumer",
-            "state": "observed",
-            "evidence": ["bad-binding"],
-        }]
-        with self.assertRaisesRegex(ValueError, "consumer-side touch"):
-            IMPACT.normalize(registry, contracts, flows, data)
+        self.assertIn("change observation is inferred", report["changes"][0]["constraints"])
 
     def test_contract_kind_mismatch_is_rejected(self):
         registry, contracts, flows, http_id, _event_id = fixture()
@@ -280,6 +253,27 @@ class DiffImpactTests(unittest.TestCase):
         data["changes"][0]["local_impact"]["steps"] = ["web.http"]
         with self.assertRaisesRegex(ValueError, "different repository"):
             IMPACT.normalize(registry, contracts, flows, data)
+
+    def test_review_scope_contains_repository_flow_and_contract(self):
+        registry, contracts, flows, http_id, _event_id = fixture()
+        changes = {
+            "schema_version": 1,
+            "workspace_id": "impact-fixture",
+            "changes": [{
+                "change_id": "checkout-contract-change",
+                "repository_id": "api",
+                "change_type": "modify",
+                "surface_kind": "http-api",
+                "identifier": "http.checkout.v1",
+                "contract_id": http_id,
+                "state": "observed",
+                "evidence": ["api:openapi-diff"],
+            }],
+        }
+        report = IMPACT.normalize(registry, contracts, flows, changes)
+        self.assertTrue(any(x.get("repository_id") == "web" for x in report["test_review_scope"]))
+        self.assertTrue(any(x.get("contract_id") == http_id for x in report["test_review_scope"]))
+        self.assertTrue(any(x.get("flow_id") == "flow_001" for x in report["test_review_scope"]))
 
     def test_private_source_is_not_present(self):
         registry, contracts, flows, _http_id, _event_id = fixture()
