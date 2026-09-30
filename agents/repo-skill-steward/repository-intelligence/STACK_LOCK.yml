@@ -1,4 +1,4 @@
-version: 13
+version: 15
 verified_at: 2026-09-30
 context: C001
 
@@ -237,6 +237,27 @@ components:
       - shallow-evidence-not-sufficient-for-authoritative-rebuild-spec
       - do-not-vendor-or-copy-implementation
 
+  - name: sazan-promotion-gate
+    role: evidence-and-promotion-policy-engine
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/evaluate_promotion.py
+    verifier: agents/repo-skill-steward/repository-intelligence/subagents/verifier/SKILL.md
+    license: repository-license
+    status: promoted-primary
+    lab_run_id: 36748478777
+    properties:
+      - deterministic
+      - no-auto-promotion
+      - parent-approval-required
+      - integration-mode-aware-license-policy
+      - provenance-gate
+      - security-gate
+      - lab-gate
+      - capability-delta-gate
+      - rollback-gate
+      - private-data-gate
+      - verifier-gate
+      - explicit-constraints
+
   - name: gitnexus
     role: benchmark-reference-architecture
     repository: nxpatterns/gitnexus
@@ -310,6 +331,17 @@ reverse_engineering_routing:
     - unknown
   verifier_gate_required: true
   clean_room_output_required: true
+
+promotion_routing:
+  primary: sazan-promotion-gate
+  verifier: verifier
+  auto_promote: false
+  final_authority: parent-repo-skill-steward
+  decisions:
+    - eligible-for-parent-promotion
+    - eligible-with-constraints
+    - pending-evidence
+    - rejected
 
 policy:
   unknown_license: reference-only

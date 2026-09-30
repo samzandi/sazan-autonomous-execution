@@ -2,7 +2,7 @@
 
 Context: C001
 Date: 2026-09-30
-Status: ACTIVE
+Status: ARCHIVE — baseline architecture complete
 
 ## Layer model
 
@@ -137,15 +137,32 @@ Operational rule:
 - verifier approval is required before promotion.
 
 ### L7 — Evidence and Promotion
-Owner: verifier sub-agent + parent Repo & Skill Steward.
+Primary engine: Sazan deterministic promotion gate
+Owner: verifier sub-agent + parent Repo & Skill Steward
+Status: verified and promoted
+Evidence: promotion gate lab run 36748478777
 
-Promotion requires:
-- canonical provenance
-- license compatibility
-- security review
-- reproducible lab evidence
-- explicit capability delta
-- rollback path
+Mandatory evidence:
+- canonical provenance and immutable revision;
+- license compatibility evaluated against integration mode;
+- security review;
+- reproducible lab evidence when executable behavior is involved;
+- explicit capability delta;
+- verified rollback path;
+- private-data handling status;
+- verifier decision with evidence.
+
+Machine decisions:
+- eligible-for-parent-promotion;
+- eligible-with-constraints;
+- pending-evidence;
+- rejected.
+
+Hard rule:
+- the gate never auto-promotes;
+- eligible means only eligible for final parent steward approval;
+- unknown license may only be carried as constrained reference-only evidence;
+- non-commercial licensing is reference-only, never commercial-core integration.
 
 ## Data flow
 

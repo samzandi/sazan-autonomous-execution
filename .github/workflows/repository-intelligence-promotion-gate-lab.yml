@@ -1,0 +1,170 @@
+name: Repository Intelligence Promotion Gate Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-promotion-gate-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+      - "tests/test_repository_intelligence_promotion.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  promotion-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Run promotion gate unit tests
+        run: python3 -m unittest tests/test_repository_intelligence_promotion.py
+
+      - name: Build eligible promotion package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/eligible.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "candidate": {
+              "name": "sazan-lab-component",
+              "source": "sazan/internal",
+              "revision": "fixture-1",
+              "integration_mode": "internal-component"
+            },
+            "checks": {
+              "provenance": {
+                "status": "verified",
+                "evidence": ["canonical internal source at fixture-1"]
+              },
+              "license": {
+                "status": "compatible",
+                "spdx": "repository-license",
+                "evidence": ["same repository license"]
+              },
+              "security": {
+                "status": "passed",
+                "evidence": ["read-only isolated fixture review"]
+              },
+              "lab": {
+                "status": "passed",
+                "evidence": ["promotion-gate CI fixture"]
+              },
+              "capability_delta": {
+                "status": "new",
+                "evidence": ["adds machine-enforced promotion policy"]
+              },
+              "rollback": {
+                "status": "verified",
+                "evidence": ["revert feature branch squash commit"]
+              },
+              "private_data": {
+                "status": "compliant",
+                "evidence": ["fixture contains no private repository metadata"]
+              },
+              "verifier": {
+                "status": "verified",
+                "evidence": ["fixture verifier record"]
+              }
+            },
+            "constraints": []
+          }
+          JSON
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/evaluate_promotion.py             "$RUNNER_TEMP/eligible.json"             --json "$RUNNER_TEMP/eligible-result.json"             --markdown "$RUNNER_TEMP/eligible-result.md"             --require-eligible
+
+          grep -q '"decision": "eligible-for-parent-promotion"' "$RUNNER_TEMP/eligible-result.json"
+          grep -q '"auto_promote": false' "$RUNNER_TEMP/eligible-result.json"
+          grep -q '"parent_approval_required": true' "$RUNNER_TEMP/eligible-result.json"
+
+      - name: Verify unknown-license core package cannot pass
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          base = json.loads((Path(os.environ["RUNNER_TEMP"]) / "eligible.json").read_text())
+          base["candidate"]["name"] = "unknown-license-core"
+          base["checks"]["license"] = {
+              "status": "unknown",
+              "evidence": ["canonical review found no license"]
+          }
+          path = Path(os.environ["RUNNER_TEMP"]) / "unknown-license.json"
+          path.write_text(json.dumps(base))
+          PY
+
+          set +e
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/evaluate_promotion.py             "$RUNNER_TEMP/unknown-license.json"             --json "$RUNNER_TEMP/unknown-license-result.json"             --markdown "$RUNNER_TEMP/unknown-license-result.md"             --require-eligible
+          code=$?
+          set -e
+          test "$code" -eq 3
+          grep -q '"decision": "pending-evidence"' "$RUNNER_TEMP/unknown-license-result.json"
+
+      - name: Verify non-commercial core package is rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          base = json.loads((Path(os.environ["RUNNER_TEMP"]) / "eligible.json").read_text())
+          base["candidate"]["name"] = "noncommercial-core"
+          base["checks"]["license"] = {
+              "status": "noncommercial",
+              "evidence": ["canonical non-commercial license"]
+          }
+          path = Path(os.environ["RUNNER_TEMP"]) / "noncommercial.json"
+          path.write_text(json.dumps(base))
+          PY
+
+          set +e
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/evaluate_promotion.py             "$RUNNER_TEMP/noncommercial.json"             --json "$RUNNER_TEMP/noncommercial-result.json"             --markdown "$RUNNER_TEMP/noncommercial-result.md"             --require-eligible
+          code=$?
+          set -e
+          test "$code" -eq 3
+          grep -q '"decision": "rejected"' "$RUNNER_TEMP/noncommercial-result.json"
+
+      - name: Verify constrained provider remains constrained
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          base = json.loads((Path(os.environ["RUNNER_TEMP"]) / "eligible.json").read_text())
+          base["candidate"]["name"] = "isolated-provider"
+          base["candidate"]["integration_mode"] = "external-adapter"
+          base["checks"]["verifier"] = {
+              "status": "verified-with-constraints",
+              "evidence": ["verifier isolated-process finding"],
+              "constraints": ["run behind isolated subprocess boundary"]
+          }
+          path = Path(os.environ["RUNNER_TEMP"]) / "constrained.json"
+          path.write_text(json.dumps(base))
+          PY
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/evaluate_promotion.py             "$RUNNER_TEMP/constrained.json"             --json "$RUNNER_TEMP/constrained-result.json"             --markdown "$RUNNER_TEMP/constrained-result.md"             --require-eligible
+
+          grep -q '"decision": "eligible-with-constraints"' "$RUNNER_TEMP/constrained-result.json"
+          grep -q 'isolated subprocess' "$RUNNER_TEMP/constrained-result.json"
+
+      - name: Publish promotion gate evidence
+        shell: bash
+        run: |
+          {
+            echo "## Repository Intelligence Promotion Gate Lab"
+            echo
+            echo "- Eligible packages remain non-automatic and require parent approval."
+            echo "- Unknown-license core integration was blocked as pending evidence."
+            echo "- Non-commercial core integration was rejected."
+            echo "- Verifier constraints propagated into the final gate result."
+            echo "- Unit tests cover provenance, license, security, lab, capability delta, rollback, private data, and verifier states."
+          } >> "$GITHUB_STEP_SUMMARY"
