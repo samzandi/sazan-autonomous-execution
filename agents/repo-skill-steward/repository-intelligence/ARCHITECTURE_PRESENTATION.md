@@ -2,11 +2,23 @@
 
 Context: C001
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
 
 ## Decision
 
-The default Sazan architecture presentation path is an internal deterministic Mermaid renderer fed by semantic graph evidence.
+The default Sazan architecture presentation path is the internal deterministic Mermaid renderer fed by semantic graph evidence.
+
+Verified lab run: 36742665729
+
+The lab verified:
+- five renderer unit tests;
+- a real CodeGraph dependency-graph query;
+- CodeGraph JSON → Mermaid rendering;
+- deterministic repeated output;
+- bounded output size;
+- unsafe-content checks;
+- no API key requirement for rendering;
+- local/private-safe operation.
 
 ## Why GitDiagram is not a core dependency
 
