@@ -69,7 +69,8 @@ GitDiagram remains optional/reference-only and is not a core dependency. Its hos
 
 ### L4 — Wiki and Repository Q&A
 Primary baseline: Sazan lightweight evidence-first Wiki/Q&A path
-Status: pending lab verification
+Status: verified and promoted
+Evidence: Wiki/Q&A lab run 36744130393
 
 Baseline components:
 - CodeGraph architecture document generation;
