@@ -306,6 +306,26 @@ class OrchestratorBudgetTests(unittest.TestCase):
             self.assertEqual(envelope["status"], "ready-for-parent-review")
             self.assertFalse(envelope["budget_policy"]["strict"])
 
+    def test_provider_failure_remains_primary_failure(self):
+        failed = {
+            "stage": "L0-intake",
+            "status": "failed",
+            "provider": "fixture-provider",
+            "evidence": [],
+            "artifacts": [],
+            "metrics": {},
+            "constraints": [],
+            "error": "provider failed before producing metrics",
+            "cross_cutting": {},
+        }
+        with tempfile.TemporaryDirectory() as td:
+            manifest_path, stage_dir = self.write_run(td, strict_manifest(), [failed])
+            _plan, envelope = ORCH.run(manifest_path, stage_dir)
+            self.assertEqual(envelope["status"], "failed")
+            l0 = next(x for x in envelope["stages"] if x["id"] == "L0-intake")
+            self.assertEqual(l0["status"], "failed")
+            self.assertEqual(l0["budget"]["decision"], "not-evaluated")
+
 
 if __name__ == "__main__":
     unittest.main()
