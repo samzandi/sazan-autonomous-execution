@@ -16,7 +16,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - multi-repository registry — VERIFIED / PROMOTED;
 - cross-repository contracts — VERIFIED / PROMOTED;
 - process-flow synthesis — VERIFIED / PROMOTED;
-- diff-impact normalization;
+- diff-impact normalization — IMPLEMENTED, pending lab;
 - token and output budgets;
 - provider fallback/health controls;
 - incremental state/cache strategy;
@@ -88,3 +88,24 @@ Model:
 - max-hops and max-paths prevent runaway traversal.
 
 Status: VERIFIED — process-flow lab run 36753107333; 11 contract tests plus end-to-end multi-repository flow validation passed.
+
+
+## Milestone 4 — Diff → Impact normalization
+
+Implementation:
+- `scripts/diff_impact_normalizer.py`;
+- `C002_DIFF_IMPACT_CONTRACT.md`;
+- diff-impact unit tests;
+- real `git diff → CodeGraph pr_context → cross-repo impact` integration lab.
+
+Model:
+- CodeGraph 0.20.1 `pr_context` is the primary repository-local diff evidence source;
+- Sazan normalizes local blast radius against the multi-repository registry, matched contracts, and process flows;
+- changed artifacts map explicitly to local steps and contract sides;
+- provider-side contract changes propagate to consumers;
+- affected process flows identify downstream repositories;
+- risk and evidence confidence remain separate;
+- inferred mappings propagate constraints instead of being silently upgraded to fact;
+- related tests from the local impact source are preserved.
+
+Status: pending C002 diff-impact lab.
