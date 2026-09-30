@@ -68,7 +68,7 @@ jobs:
           set -euo pipefail
           python3 -m venv "$RUNNER_TEMP/gitingest-venv"
           "$RUNNER_TEMP/gitingest-venv/bin/python" -m pip install --quiet "gitingest==0.3.1"
-          version="$("$RUNNER_TEMP/gitingest-venv/bin/gitingest" --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+          version="$("$RUNNER_TEMP/gitingest-venv/bin/python" -c 'from importlib.metadata import version; print(version("gitingest"))')"
           test "$version" = "0.3.1"
 
       - name: Install verified Code2Prompt binary
