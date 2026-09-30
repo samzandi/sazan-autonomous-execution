@@ -1,4 +1,4 @@
-version: 1
+version: 2
 verified_at: 2026-09-30
 context: C001
 
@@ -6,20 +6,46 @@ components:
   - name: repomix
     role: primary-context-packer
     repository: yamadashy/repomix
+    pinned_version: 1.18.1
     license: MIT
-    status: evaluate-for-promotion
+    status: proposed-primary-pending-lab
+    evidence:
+      - token-aware-packaging
+      - git-aware-filtering
+      - remote-repository-input
+      - secretlint-backed-secret-detection
+      - tree-sitter-compression
+      - multi-format-output
 
   - name: gitingest
-    role: lightweight-repository-ingest
+    role: lightweight-python-ingest-fallback
     repository: coderamp-labs/gitingest
+    pinned_version: 0.3.1
     license: MIT
-    status: evaluate-for-promotion
+    status: proposed-fallback-pending-lab
+    evidence:
+      - cli
+      - python-sync-api
+      - python-async-api
+      - url-ingest
+      - gitignore-support
+      - self-host-docker
 
   - name: code2prompt
-    role: scoped-context-and-agent-skill
+    role: scoped-agent-context-and-mcp
     repository: mufeedvh/code2prompt
+    pinned_version: 4.2.0
     license: MIT
-    status: evaluate-for-promotion
+    status: proposed-agent-path-pending-lab
+    linux_x86_64_sha256: 69ff91f6e690de4814f38eb79d1fff5971d5a39bdc82b23ea784dcd450bf965f
+    evidence:
+      - rust-core
+      - cli-and-tui
+      - python-sdk
+      - mcp
+      - templates
+      - token-estimation
+      - git-integration
 
   - name: codegraph
     role: semantic-code-graph
@@ -65,6 +91,12 @@ components:
     repository: unknown
     license: unknown
     status: service-reference-only
+
+context_packaging_routing:
+  default: repomix
+  scoped_agent_or_mcp: code2prompt
+  lightweight_python_fallback: gitingest
+  run_all_three_by_default: false
 
 policy:
   unknown_license: reference-only
