@@ -208,7 +208,7 @@ jobs:
           tmp = Path(os.environ["RUNNER_TEMP"])
           changes = {
             "schema_version": 1,
-            "workspace_id": "c002-diff-impact-fixture",
+            "workspace_id": "c002-impact-fixture",
             "changes": [{
               "change_id": "api-calculate-total-change",
               "repository_id": "api",
