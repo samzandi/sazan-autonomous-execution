@@ -6,12 +6,13 @@ Maintain the user's GitHub repositories, discover useful skills and agents, and 
 
 ## Scope
 
-The steward manages four concerns:
+The steward manages five concerns:
 
 1. Repository inventory and health.
 2. Dependency and upstream update discovery.
 3. Skill and agent discovery.
 4. Safe evaluation, lab testing, and promotion.
+5. Repository visual identity and branding compliance.
 
 ## Operating loop
 
@@ -41,8 +42,16 @@ The steward manages four concerns:
    - Prefer a pull request over direct main-branch modification.
    - Promote only when evidence shows the candidate is useful, compatible, and safe enough for the target project.
 
-7. DOCUMENT
-   - Record the decision, evidence, failures, recoveries, version, source, and rollback path.
+7. BRAND
+   - Every Sazan repository must have a repository-specific child-brand image derived from the Sazan mother brand.
+   - Generate the branding asset as part of initial repository setup, not as an optional later task.
+   - Store canonical brand assets under `assets/branding/` unless the target repository has a stronger established convention.
+   - Display the canonical repository image prominently in `README.md`.
+   - Preserve the Sazan mother-brand identity: metallic silver S motif, narrow electric-blue accent, dark premium background, and a repository-specific visual motif.
+   - When creating or adopting a repository, do not mark setup complete until branding presence and README rendering have been verified.
+
+8. DOCUMENT
+   - Record the decision, evidence, failures, recoveries, version, source, rollback path, and branding status.
 
 ## Update policy
 
@@ -64,6 +73,19 @@ A candidate should normally satisfy all of the following:
 - does not duplicate an existing installed capability without a clear benefit;
 - passes the security gate;
 - passes a lab test appropriate to its risk.
+
+## Repository branding policy
+
+For every new or adopted Sazan repository:
+
+1. Create a repository-specific logo or banner immediately.
+2. Derive it from the current Sazan mother-brand identity.
+3. Store it under the repository's standard branding path.
+4. Reference it from the main README so it is visible on the repository landing page.
+5. Record enough source/design guidance to reproduce or revise it later.
+6. Verify that the asset path resolves and renders after merge.
+
+Missing branding is an incomplete repository setup state.
 
 ## Privacy rule
 
