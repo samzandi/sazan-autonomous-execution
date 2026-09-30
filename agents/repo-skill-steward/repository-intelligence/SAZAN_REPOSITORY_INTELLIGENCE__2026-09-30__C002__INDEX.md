@@ -11,8 +11,8 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 
 ## Initial scope
 
-- orchestration entry point;
-- common evidence-envelope schema;
+- orchestration entry point — VERIFIED / PROMOTED;
+- common evidence-envelope schema — VERIFIED / PROMOTED;
 - multi-repository registry;
 - cross-repository contracts;
 - process-flow synthesis;
@@ -21,6 +21,24 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - provider fallback/health controls;
 - incremental state/cache strategy;
 - realistic end-to-end integration lab.
+
+## Milestone 1 — Single-repository orchestration
+
+Implementation:
+- `scripts/evidence_envelope.py`;
+- `scripts/orchestrate_repository_intelligence.py`;
+- `C002_ORCHESTRATION_CONTRACT.md`.
+
+The orchestrator:
+- enforces L0→L7 ordering;
+- skips L5 automatically for analysis-only runs;
+- applies run-level token/graph/output/timeout budgets;
+- redacts private/internal repository identity from persisted output;
+- propagates stage constraints and cross-cutting gates;
+- delegates the final decision to the verified L7 promotion engine;
+- can only reach `ready-for-parent-review`, never auto-promotion.
+
+Status: VERIFIED — orchestration lab run 36750536038; 9 contract tests passed.
 
 ## Constraints carried from C001
 

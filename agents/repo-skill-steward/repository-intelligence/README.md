@@ -8,6 +8,10 @@ Parent: Sazan Repo & Skill Steward
 
 Turn an external or internal repository into a structured evidence package that Sazan agents can understand, compare, test, and safely promote without blindly copying upstream code.
 
+## C002 orchestration
+
+The C002 entry point is `scripts/orchestrate_repository_intelligence.py`, backed by a common evidence envelope. It coordinates the verified L0–L7 layers while preserving private-repository identity rules, explicit run budgets, and the parent steward promotion boundary.
+
 ## Operating pipeline
 
 1. Intake and provenance

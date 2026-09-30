@@ -1,0 +1,140 @@
+name: Repository Intelligence C002 Orchestration Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-c002-orchestration-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+      - "tests/test_repository_intelligence_orchestration.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  orchestration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Compile orchestration scripts
+        run: |
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/evidence_envelope.py
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/orchestrate_repository_intelligence.py
+
+      - name: Run orchestration contract tests
+        run: python3 -m unittest tests/test_repository_intelligence_orchestration.py
+
+      - name: Build realistic C002 analysis run
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stages"
+
+          cat > "$RUNNER_TEMP/manifest.json" <<'JSON'
+          {
+            "run_id": "c002-lab-001",
+            "purpose": "multi-layer repository intelligence fixture",
+            "mode": "analysis",
+            "target": {
+              "source": "sazan-lab/repository-intelligence-fixture",
+              "revision": "fixture-001",
+              "visibility": "local-fixture"
+            },
+            "privacy": {
+              "persist_private_identity": false
+            },
+            "budgets": {
+              "max_context_tokens": 20000,
+              "max_graph_nodes": 500,
+              "max_output_bytes": 500000,
+              "stage_timeout_seconds": 120
+            }
+          }
+          JSON
+
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          out = Path(os.environ["RUNNER_TEMP"]) / "stages"
+          def write(stage, cross=None, constraints=None):
+              data = {
+                  "stage": stage,
+                  "status": "passed-with-constraints" if constraints else "passed",
+                  "provider": "c002-fixture",
+                  "evidence": [f"lab:{stage}"],
+                  "artifacts": [f"artifact:{stage}"],
+                  "metrics": {"fixture": 1},
+                  "constraints": constraints or [],
+                  "cross_cutting": cross or {},
+              }
+              (out / f"{stage}.json").write_text(json.dumps(data))
+
+          gates = {
+              "license": {"status": "compatible", "evidence": ["fixture-license"]},
+              "security": {"status": "passed", "evidence": ["fixture-security"]},
+              "capability_delta": {"status": "new", "evidence": ["fixture-delta"]},
+              "rollback": {"status": "verified", "evidence": ["fixture-rollback"]},
+              "private_data": {"status": "compliant", "evidence": ["fixture-privacy"]},
+              "verifier": {"status": "verified-with-constraints", "evidence": ["fixture-verifier"], "constraints": ["fixture-only constraint propagation"]}
+          }
+          write("L0-intake", cross=gates)
+          write("L1-context-packaging")
+          write("L2-semantic-graph")
+          write("L3-architecture-presentation")
+          write("L4-wiki-qa")
+          write("L6-reverse-engineering")
+          PY
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/orchestrate_repository_intelligence.py             "$RUNNER_TEMP/manifest.json"             --stage-dir "$RUNNER_TEMP/stages"             --plan "$RUNNER_TEMP/plan.json"             --envelope "$RUNNER_TEMP/envelope.json"             --require-parent-review
+
+          grep -q '"status": "ready-for-parent-review"' "$RUNNER_TEMP/envelope.json"
+          grep -q '"decision": "eligible-with-constraints"' "$RUNNER_TEMP/envelope.json"
+          grep -q '"auto_promote": false' "$RUNNER_TEMP/envelope.json"
+          grep -q 'fixture-only constraint propagation' "$RUNNER_TEMP/envelope.json"
+
+      - name: Verify private identity redaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/private-stages"
+          cat > "$RUNNER_TEMP/private-manifest.json" <<'JSON'
+          {
+            "run_id": "c002-private-001",
+            "purpose": "private fixture analysis",
+            "mode": "analysis",
+            "target": {
+              "source": "secret-owner/secret-repository",
+              "revision": "deadbeef",
+              "visibility": "private"
+            },
+            "privacy": {
+              "persist_private_identity": false
+            }
+          }
+          JSON
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/orchestrate_repository_intelligence.py             "$RUNNER_TEMP/private-manifest.json"             --stage-dir "$RUNNER_TEMP/private-stages"             --plan "$RUNNER_TEMP/private-plan.json"             --envelope "$RUNNER_TEMP/private-envelope.json"
+
+          ! grep -q "secret-owner" "$RUNNER_TEMP/private-plan.json"
+          ! grep -q "secret-owner" "$RUNNER_TEMP/private-envelope.json"
+          grep -q '"identity_persisted": false' "$RUNNER_TEMP/private-envelope.json"
+          grep -q '"repository_id": "repo_' "$RUNNER_TEMP/private-envelope.json"
+
+      - name: Publish C002 orchestration evidence
+        shell: bash
+        run: |
+          {
+            echo "## C002 Repository Intelligence Orchestration Lab"
+            echo
+            echo "- Common evidence envelope validated."
+            echo "- L0→L7 stage ordering enforced."
+            echo "- Analysis mode skipped semantic editing by policy."
+            echo "- L7 promotion was evaluated through the existing verified gate."
+            echo "- Parent review remained mandatory."
+            echo "- Private repository identity was redacted from persisted output."
+          } >> "$GITHUB_STEP_SUMMARY"

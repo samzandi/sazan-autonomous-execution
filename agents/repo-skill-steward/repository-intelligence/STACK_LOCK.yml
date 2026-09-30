@@ -1,8 +1,26 @@
-version: 15
+version: 16
 verified_at: 2026-09-30
-context: C001
+context: C002
 
 components:
+  - name: sazan-repository-intelligence-orchestrator
+    role: end-to-end-l0-l7-orchestration
+    implementation: agents/repo-skill-steward/repository-intelligence/scripts/orchestrate_repository_intelligence.py
+    evidence_envelope: agents/repo-skill-steward/repository-intelligence/scripts/evidence_envelope.py
+    license: repository-license
+    status: promoted-primary
+    lab_run_id: 36750536038
+    properties:
+      - deterministic-stage-order
+      - common-evidence-envelope
+      - private-identity-redaction
+      - explicit-run-budgets
+      - analysis-mode-skips-semantic-editing
+      - stop-on-blocked-or-failed
+      - delegates-l7-to-verified-promotion-gate
+      - no-auto-promotion
+      - parent-review-required
+
   - name: repomix
     role: primary-context-packer
     repository: yamadashy/repomix
@@ -354,3 +372,21 @@ policy:
     - lab-evidence
     - capability-delta
     - rollback-path
+
+orchestration_routing:
+  primary: sazan-repository-intelligence-orchestrator
+  context: C002
+  stage_order:
+    - L0-intake
+    - L1-context-packaging
+    - L2-semantic-graph
+    - L3-architecture-presentation
+    - L4-wiki-qa
+    - L5-semantic-editing
+    - L6-reverse-engineering
+    - L7-promotion
+  analysis_mode_skips:
+    - L5-semantic-editing
+  private_identity_persistence: false
+  auto_promote: false
+  final_authority: parent-repo-skill-steward

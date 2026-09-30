@@ -8,6 +8,19 @@ Provide evidence-driven repository understanding for the parent Sazan Repo & Ski
 
 Use when a repository must be evaluated, reverse engineered, compared, documented, or prepared for safe capability extraction.
 
+## C002 orchestration
+
+For end-to-end runs, use `scripts/orchestrate_repository_intelligence.py` as the control entry point and the common evidence-envelope contract for stage handoff.
+
+Rules:
+- preserve L0→L7 ordering;
+- analysis-only runs skip semantic editing;
+- stop on blocked/failed stages;
+- respect run budgets;
+- redact private/internal repository identities from persisted public artifacts;
+- delegate L7 policy to the verified promotion gate;
+- never auto-promote.
+
 ## Required stages
 
 1. Intake
