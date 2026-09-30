@@ -20,13 +20,17 @@ Use when a repository must be evaluated, reverse engineered, compared, documente
    - Use Code2Prompt when a scoped, templated, agent-oriented prompt is more efficient.
 
 3. Structure and semantics
-   - Build a semantic dependency view with a permissively licensed graph engine.
-   - Current preferred candidate: CodeGraph (Apache-2.0).
+   - Build semantic dependency evidence with CodeGraph Community (Apache-2.0).
+   - Query graph relationships before inferring them from raw text.
    - Do not treat text packing as a substitute for dependency/call analysis.
 
-4. Documentation and visualization
-   - Generate architecture views with GitDiagram where useful.
-   - Use DeepWiki Open or an equivalent self-hosted layer for wiki/Q&A.
+4. Documentation, visualization, and Q&A
+   - Use CodeGraph architecture-doc generation for the baseline wiki seed.
+   - Use CodeGraph curated context for natural-language repository questions.
+   - Use the internal Sazan Mermaid renderer for baseline diagrams.
+   - Add L1 packed text context only when graph evidence is insufficient.
+   - Use DeepWiki Open only as an optional full Wiki/RAG product when persistent vector retrieval or a standalone wiki UI is required.
+   - Never send private repository content to an external hosted wiki/Q&A service by default.
 
 5. License and security gate
    - Verify license from the canonical source before integration.
