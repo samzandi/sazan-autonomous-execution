@@ -32,21 +32,29 @@ Use when a repository must be evaluated, reverse engineered, compared, documente
    - Use DeepWiki Open only as an optional full Wiki/RAG product when persistent vector retrieval or a standalone wiki UI is required.
    - Never send private repository content to an external hosted wiki/Q&A service by default.
 
-5. License and security gate
+5. Semantic editing
+   - Use CodeGraph impact evidence before high-connectivity edits.
+   - Prefer symbol-aware rename/edit/delete over regex-based identifier surgery.
+   - Current primary candidate is pinned Serena 1.7.0 (MIT), never an unpinned Serena install.
+   - Keep current Serena v2 GPL application code outside the Sazan commercial core unless separately approved.
+   - Re-run diagnostics/tests and CodeGraph verification after edits.
+   - Never perform semantic edits directly on the protected default branch.
+
+6. License and security gate
    - Verify license from the canonical source before integration.
    - Detect install scripts, secrets access, network calls, binary downloads, privileged operations, workflow mutations, and unsafe shell execution.
    - Unknown license means reference-only.
    - Non-commercial license means no embedded use in Sazan commercial core.
 
-6. Capability extraction
+7. Capability extraction
    - Extract concepts, interfaces, algorithms, tests, UX patterns, and architectural techniques.
    - Prefer reimplementation from documented behavior when copying code would create licensing or coupling risk.
 
-7. Verification
+8. Verification
    - Require source citations/evidence, reproducible checks, and a rollback path.
    - Compare claims against repository code or canonical documentation.
 
-8. Output
+9. Output
    - Produce an evidence package with: purpose, architecture, dependencies, license, security notes, strengths, limitations, reusable capabilities, rejected items, and recommended next action.
 
 ## Promotion rule
