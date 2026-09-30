@@ -20,7 +20,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - token and output budgets — VERIFIED / PROMOTED;
 - provider fallback/health controls — VERIFIED / PROMOTED;
 - incremental state/cache strategy — VERIFIED / PROMOTED;
-- realistic end-to-end integration lab.
+- realistic end-to-end integration lab — VERIFIED / PROMOTED;
 
 ## Milestone 1 — Single-repository orchestration
 
@@ -176,3 +176,25 @@ Model:
 - cache hits never bypass provider health, budgets, license/security, verifier, or parent promotion gates.
 
 Status: VERIFIED — incremental-cache lab run 36763808082; 19 contract tests plus cross-revision hit/invalidation validation passed.
+
+
+## Milestone 8 — Realistic end-to-end integration lab
+
+Implementation:
+- `scripts/run_c002_e2e_lab.py`;
+- `C002_END_TO_END_LAB.md`;
+- end-to-end integration tests;
+- pull-request integration workflow.
+
+Scenario:
+- four repositories participate in one checkout workspace;
+- three internal contracts are matched across repository boundaries;
+- one observed entry-to-terminal flow crosses web, API, and a private worker;
+- an API event change propagates downstream review impact;
+- Repomix is deliberately unhealthy so the promoted Gitingest fallback is exercised;
+- strict budget telemetry is enforced across the L0→L7 orchestration path;
+- an L2 cache result is reused across revisions only under unchanged semantic fingerprints;
+- private repository source identity must not appear in persisted outputs;
+- the final machine state must remain `ready-for-parent-review` with auto-promotion disabled.
+
+Status: VERIFIED — end-to-end lab run 36764817135; dedicated end-to-end tests, full C002 regression suite, executable lab assertions, provider fallback, strict budgets, cross-revision cache reuse, parent-review gate, and privacy-redaction checks passed.
