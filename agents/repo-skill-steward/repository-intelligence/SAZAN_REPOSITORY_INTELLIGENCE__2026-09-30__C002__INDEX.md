@@ -16,7 +16,7 @@ Turn the verified L0–L7 components into one operational Repository Intelligenc
 - multi-repository registry — VERIFIED / PROMOTED;
 - cross-repository contracts — VERIFIED / PROMOTED;
 - process-flow synthesis — VERIFIED / PROMOTED;
-- diff-impact normalization — IMPLEMENTED, pending lab;
+- diff-impact normalization — VERIFIED / PROMOTED;
 - token and output budgets;
 - provider fallback/health controls;
 - incremental state/cache strategy;
@@ -108,4 +108,4 @@ Model:
 - contract version mismatches become explicit compatibility findings;
 - missing semantic mapping remains partial-evidence rather than guessed impact.
 
-Status: pending C002 diff-impact lab.
+Status: VERIFIED — diff-impact lab run 36755232124; 11 contract tests plus real CodeGraph cross-repository propagation validation passed.
