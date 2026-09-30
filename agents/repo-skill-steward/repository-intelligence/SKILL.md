@@ -69,6 +69,20 @@ For production Repository Intelligence runs:
 - block provider truncation unless an explicit constrained override exists;
 - never mutate or silently truncate artifacts to make a result appear within budget.
 
+## Provider health and fallback
+
+For production runs:
+- enable strict provider_policy;
+- require evidence-backed health observations;
+- select only providers explicitly eligible for the stage capability contract;
+- use Gitingest as the baseline L1 fallback when Repomix is unhealthy;
+- do not treat Code2Prompt as a silent full-context fallback;
+- do not substitute optional products or license-constrained references for promoted providers;
+- require private-safe providers for private/internal repositories;
+- require stage results to match the routed provider;
+- persist fallback receipts and constraints;
+- fail closed when no equivalent promoted provider is healthy.
+
 ## Required stages
 
 1. Intake
