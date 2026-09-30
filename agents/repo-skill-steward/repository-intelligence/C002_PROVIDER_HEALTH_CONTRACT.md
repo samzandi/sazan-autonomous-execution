@@ -2,7 +2,23 @@
 
 Context: C002
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
+
+Verified lab run: 36759816437
+
+Verified:
+- twenty-seven provider-routing and orchestration tests passed;
+- healthy primary providers remained selected;
+- unhealthy Repomix explicitly fell back to Gitingest under the same context-packaging contract;
+- degraded providers required explicit opt-in;
+- missing health observations were not treated as healthy;
+- mismatched fallback capability contracts were rejected;
+- private/internal targets rejected non-private-safe providers;
+- CodeGraph failure without an equivalent promoted semantic-graph fallback blocked;
+- orchestration blocked stage results from a provider other than the routed provider;
+- fallback receipts and constraints were persisted;
+- legacy non-strict routing remained compatible;
+- all existing Repository Intelligence regression workflows passed on the implementation commit.
 
 ## Purpose
 
