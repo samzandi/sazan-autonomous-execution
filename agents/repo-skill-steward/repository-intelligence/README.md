@@ -22,7 +22,7 @@ C002 adds `scripts/process_flow_synthesis.py` to reconstruct bounded, evidence-b
 
 ## Cross-repository diff impact
 
-C002 adds `scripts/diff_impact_normalize.py`. It combines local semantic-impact evidence with the registry, matched contracts, and execution flows so a repository-local change becomes a normalized cross-repository blast-radius report. Unmapped changes remain explicitly partial rather than receiving a guessed risk score.
+C002 adds `scripts/diff_impact_normalize.py`. It combines real CodeGraph branch-diff and semantic-impact evidence with the registry, matched contracts, and execution flows. Unmapped changes remain `partial-evidence`; compatibility findings and factual test/review scope are preserved without speculative numeric risk scoring.
 
 ## Operating pipeline
 
