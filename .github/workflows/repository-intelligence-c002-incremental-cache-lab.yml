@@ -1,0 +1,167 @@
+name: Repository Intelligence C002 Incremental Cache Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-c002-incremental-cache-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/**"
+      - "tests/test_repository_intelligence_incremental_cache.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  incremental-cache:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Compile and run cache contract tests
+        run: |
+          python3 -m py_compile agents/repo-skill-steward/repository-intelligence/scripts/incremental_cache.py
+          python3 -m unittest tests/test_repository_intelligence_incremental_cache.py
+
+      - name: Verify cross-revision stable-input hit
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/descriptor-r1.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "repository_id": "repo_fixture",
+            "revision": "r1",
+            "stage": "L2-semantic-graph",
+            "provider": "codegraph-0.20.1",
+            "provider_version": "0.20.1",
+            "provider_contract": "semantic-graph-v1",
+            "stage_input_fingerprint": "source-fp-a",
+            "policy_fingerprint": "policy-fp-a",
+            "implementation_fingerprint": "impl-fp-a",
+            "dependencies": [
+              {"name": "context", "fingerprint": "ctx-fp-a"},
+              {"name": "route", "fingerprint": "route-fp-a"}
+            ],
+            "reuse_policy": "fingerprint-stable-cross-revision"
+          }
+          JSON
+
+          cat > "$RUNNER_TEMP/descriptor-r2.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "repository_id": "repo_fixture",
+            "revision": "r2",
+            "stage": "L2-semantic-graph",
+            "provider": "codegraph-0.20.1",
+            "provider_version": "0.20.1",
+            "provider_contract": "semantic-graph-v1",
+            "stage_input_fingerprint": "source-fp-a",
+            "policy_fingerprint": "policy-fp-a",
+            "implementation_fingerprint": "impl-fp-a",
+            "dependencies": [
+              {"name": "route", "fingerprint": "route-fp-a"},
+              {"name": "context", "fingerprint": "ctx-fp-a"}
+            ],
+            "reuse_policy": "fingerprint-stable-cross-revision"
+          }
+          JSON
+
+          python3 - <<'PY'
+          import importlib.util, json, os
+          from pathlib import Path
+          root = Path.cwd()
+          p = root / "agents/repo-skill-steward/repository-intelligence/scripts/incremental_cache.py"
+          spec = importlib.util.spec_from_file_location("cache", p)
+          cache = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(cache)
+          tmp = Path(os.environ["RUNNER_TEMP"])
+          d = json.loads((tmp / "descriptor-r1.json").read_text())
+          entry = cache.create_entry(
+              d,
+              "result-fp-a",
+              artifacts=[{"name":"graph.json","fingerprint":"artifact-fp-a"}],
+              evidence=["lab:graph"],
+          )
+          (tmp / "entry.json").write_text(json.dumps(entry, indent=2))
+          PY
+
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/incremental_cache.py             check "$RUNNER_TEMP/entry.json"             "$RUNNER_TEMP/descriptor-r2.json"             --output "$RUNNER_TEMP/hit.json"             --require-hit
+
+          grep -q '"decision": "hit"' "$RUNNER_TEMP/hit.json"
+          grep -q '"cross_revision_reuse": true' "$RUNNER_TEMP/hit.json"
+
+      - name: Verify dependency and policy invalidation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          tmp = Path(os.environ["RUNNER_TEMP"])
+          d = json.loads((tmp / "descriptor-r2.json").read_text())
+          d["dependencies"][0]["fingerprint"] = "route-fp-b"
+          d["policy_fingerprint"] = "policy-fp-b"
+          (tmp / "descriptor-miss.json").write_text(json.dumps(d, indent=2))
+          PY
+
+          set +e
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/incremental_cache.py             check "$RUNNER_TEMP/entry.json"             "$RUNNER_TEMP/descriptor-miss.json"             --output "$RUNNER_TEMP/miss.json"             --require-hit
+          code=$?
+          set -e
+          test "$code" -eq 9
+          grep -q '"decision": "miss"' "$RUNNER_TEMP/miss.json"
+          grep -q 'dependencies-changed' "$RUNNER_TEMP/miss.json"
+          grep -q 'policy_fingerprint-changed' "$RUNNER_TEMP/miss.json"
+
+      - name: Verify same-revision-only invalidation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          tmp = Path(os.environ["RUNNER_TEMP"])
+          d1 = json.loads((tmp / "descriptor-r1.json").read_text())
+          d2 = json.loads((tmp / "descriptor-r2.json").read_text())
+          d1["reuse_policy"] = "same-revision-only"
+          d2["reuse_policy"] = "same-revision-only"
+          (tmp / "same-r1.json").write_text(json.dumps(d1))
+          (tmp / "same-r2.json").write_text(json.dumps(d2))
+          PY
+
+          python3 - <<'PY'
+          import importlib.util, json, os
+          from pathlib import Path
+          root = Path.cwd()
+          p = root / "agents/repo-skill-steward/repository-intelligence/scripts/incremental_cache.py"
+          spec = importlib.util.spec_from_file_location("cache", p)
+          cache = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(cache)
+          tmp = Path(os.environ["RUNNER_TEMP"])
+          d = json.loads((tmp / "same-r1.json").read_text())
+          (tmp / "same-entry.json").write_text(json.dumps(cache.create_entry(d, "result-a")))
+          PY
+
+          set +e
+          python3 agents/repo-skill-steward/repository-intelligence/scripts/incremental_cache.py             check "$RUNNER_TEMP/same-entry.json"             "$RUNNER_TEMP/same-r2.json"             --output "$RUNNER_TEMP/same-miss.json"             --require-hit
+          code=$?
+          set -e
+          test "$code" -eq 9
+          grep -q 'revision-changed-under-same-revision-policy' "$RUNNER_TEMP/same-miss.json"
+
+      - name: Publish cache evidence
+        shell: bash
+        run: |
+          {
+            echo "## C002 Incremental Cache Lab"
+            echo
+            echo "- Cache identity is based on semantic stage inputs, not branch names or timestamps."
+            echo "- Stable stage fingerprints can be reused across revisions."
+            echo "- Provider/version/contract, policy, implementation, and dependency changes invalidate."
+            echo "- Same-revision-only policy blocks cross-revision reuse."
+            echo "- Cache-key and result-fingerprint integrity are enforced."
+            echo "- Private repository source names are not required in cache metadata."
+          } >> "$GITHUB_STEP_SUMMARY"
