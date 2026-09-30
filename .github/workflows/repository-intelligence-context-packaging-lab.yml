@@ -60,7 +60,8 @@ jobs:
           {"project":"sazan-fixture","enabled":true}
           EOF
           echo "SHOULD_NOT_APPEAR_IN_OUTPUT" > "$fixture/ignored.txt"
-          git init -q "$fixture"\n          echo "FIXTURE=$fixture" >> "$GITHUB_ENV"
+          git init -q "$fixture"
+          echo "FIXTURE=$fixture" >> "$GITHUB_ENV"
 
       - name: Install pinned Gitingest
         shell: bash
