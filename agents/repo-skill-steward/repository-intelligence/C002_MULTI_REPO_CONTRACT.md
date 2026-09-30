@@ -2,7 +2,21 @@
 
 Context: C002
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
+
+Verified lab run: 36751884638
+
+Verified:
+- four repositories registered in one workspace;
+- three internal contracts matched;
+- one external requirement remained external without blocking;
+- private repository source identity did not appear in persisted output;
+- deliberate version mismatch blocked the workspace;
+- ambiguous provider handling and provider hints were validated;
+- inferred relationships propagated constraints;
+- malformed contract observations were rejected;
+- contract identifiers include provider, consumer, key, and kind;
+- deterministic output was verified.
 
 ## Purpose
 
