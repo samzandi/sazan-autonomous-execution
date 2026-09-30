@@ -2,7 +2,21 @@
 
 Context: C002
 Date: 2026-09-30
-Status: LAB VALIDATION
+Status: VERIFIED
+
+Verified lab run: 36763808082
+
+Verified:
+- nineteen incremental-cache contract tests passed;
+- stable semantic stage inputs produced a cache hit across source revisions;
+- same-revision-only policy rejected cross-revision reuse;
+- provider version and provider contract changes invalidated;
+- policy and implementation changes invalidated;
+- upstream dependency fingerprint changes invalidated downstream entries;
+- corrupted cache-key integrity and missing result fingerprints invalidated;
+- dependency ordering did not change semantic cache identity;
+- private source identity was not required in persisted cache metadata;
+- deterministic cache entries and receipts were verified.
 
 ## Purpose
 
