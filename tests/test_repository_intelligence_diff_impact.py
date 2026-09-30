@@ -123,6 +123,8 @@ def symbol_change():
             "local_impact": {
                 "symbols": ["handle_checkout"],
                 "steps": ["api.handle"],
+                "files": ["api/checkout.py"],
+                "tests": ["tests/test_checkout.py"],
                 "evidence": ["codegraph:impact:handle_checkout"],
             },
         }],
@@ -137,6 +139,11 @@ class DiffImpactTests(unittest.TestCase):
         self.assertEqual(report["blast_radius"]["repositories"], ["api", "repo_worker_01"])
         self.assertEqual(report["blast_radius"]["flows"], ["flow_001"])
         self.assertNotIn("web", report["blast_radius"]["repositories"])
+        self.assertEqual(report["changes"][0]["local_impact"]["tests"], ["tests/test_checkout.py"])
+        self.assertTrue(any(
+            x.get("test_target") == "tests/test_checkout.py"
+            for x in report["test_review_scope"]
+        ))
 
     def test_http_contract_change_reaches_both_parties_and_downstream(self):
         registry, contracts, flows, http_id, _event_id = fixture()
