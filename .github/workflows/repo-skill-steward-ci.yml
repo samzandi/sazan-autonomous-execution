@@ -61,6 +61,17 @@ jobs:
           grep -q "permissions:" .github/workflows/repo-skill-steward-scheduled-audit.yml
           grep -q "contents: read" .github/workflows/repo-skill-steward-scheduled-audit.yml
 
+  diff-impact-revalidation-bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Bootstrap evidence-first diff impact revalidation
+        shell: bash
+        run: bash agents/repo-skill-steward/repository-intelligence/scripts/run_diff_impact_lab.sh
+
   secure-installer-posix-dryrun:
     runs-on: ubuntu-latest
     steps:
