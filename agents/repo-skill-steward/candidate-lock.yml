@@ -1,5 +1,5 @@
 version: 1
-verified_at: 2026-09-25
+verified_at: 2026-10-03
 
 candidates:
   - name: agent-skill-stack
@@ -138,7 +138,109 @@ candidates:
       - do not use for compliance conclusions until its ASI taxonomy is corrected and re-reviewed
       - external tool recommendations inside the Skill are not approved for installation
 
+
+  - name: anthropic-frontend-design
+    role: primary-frontend-visual-direction
+    repository: anthropics/claude-plugins-official
+    path: plugins/frontend-design/skills/frontend-design/SKILL.md
+    repository_commit: d182ca456ca09d31d139f7d3818d1d333b103cce
+    blob_sha: a5333457c414d20d625f307df945842c0952ecc3
+    license: upstream-plugin-terms
+    status: static-review-passed
+    install_status: not-installed
+    executable_files: 0
+
+  - name: taste-skill-selected-frontend
+    role: specialist-frontend-design-subskills
+    repository: Leonxlnx/taste-skill
+    repository_commit: ce26fc25c0e5e8cab638f883de62d9a86ee5e45b
+    license: MIT
+    status: lab-passed
+    install_status: not-installed
+    lab_evidence:
+      workflow: Frontend Design Stack Candidate Lab
+      run_id: 37141115403
+      checks:
+        - pinned-commit-checkout
+        - selected-subskill-file-surface
+        - no-executable-sidecars-in-selected-paths
+      secrets_provided: false
+    selected_paths:
+      - skills/image-to-code-skill
+      - skills/minimalist-skill
+      - skills/redesign-skill
+      - skills/brandkit
+      - skills/imagegen-frontend-mobile
+      - skills/imagegen-frontend-web
+    executable_files_in_selected_paths: 0
+    security_observations:
+      placeholder_remote_images_present: true
+      executable_sidecars_present: false
+      install_only_selected_subskills: true
+
+  - name: vercel-web-design-guidelines
+    role: web-ui-standards-audit
+    repository: vercel-labs/agent-skills
+    path: skills/web-design-guidelines/SKILL.md
+    repository_commit: 063bee94c3f4df8453406c830b0a7df0f2860278
+    blob_sha: ceae92ab319216a68274168fba9b63b998b65997
+    license: MIT
+    status: pinned-vendored-verified
+    install_status: not-installed
+    lab_evidence:
+      workflow: Frontend Design Stack Candidate Lab
+      run_id: 37141115403
+      checks:
+        - vendored-git-blob-match
+        - pinned-upstream-provenance
+        - mutable-runtime-fetch-disabled
+      secrets_provided: false
+    security_observations:
+      mutable_runtime_fetch_present: true
+      sazan_runtime_policy: vendored-pinned-guidelines-only
+      pinned_guidelines_repository: vercel-labs/web-interface-guidelines
+      pinned_guidelines_commit: e3d624baaf29dc1fc645aff3e38f03e564d2d6b1
+      pinned_guidelines_blob_sha: e1e8e3460db7c1440e34642c4f7b885185ca5366
+
+  - name: awesome-design-md
+    role: frontend-design-reference-library
+    repository: VoltAgent/awesome-design-md
+    repository_commit: f6961238d5cddcf8042a74a70fc400ec67181abb
+    license: MIT
+    status: reference-only
+    install_status: not-installed
+    executable_files: 0
+
+  - name: playwright-cli
+    role: browser-ui-verification
+    repository: microsoft/playwright-cli
+    package: "@playwright/cli"
+    package_version_observed: 0.1.22
+    repository_commit: b85c7a736bb473bf55b584e54a09ffa698d6d871
+    license: Apache-2.0
+    status: isolated-smoke-passed
+    install_status: not-installed
+    lab_evidence:
+      workflow: Frontend Design Stack Candidate Lab
+      run_id: 37141115403
+      checks:
+        - pinned-package-version
+        - npm-lifecycle-scripts-disabled
+        - cli-help-smoke
+        - isolated-agent-skill-install
+        - no-project-mutation
+      secrets_provided: false
+    security_observations:
+      npm_install_mode: ignore-scripts
+      browser_install_not_authorized_by-smoke: true
+      skills_install_scope: isolated-home-only
+
 promotion_order:
+  - anthropic-frontend-design
+  - taste-skill-selected-frontend
+  - vercel-web-design-guidelines
+  - playwright-cli
+  - awesome-design-md
   - skills-cli
   - agent-skill-stack
   - agent-supply-chain

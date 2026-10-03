@@ -14,6 +14,24 @@ Inventory -> Discover -> Triage -> Security Gate -> Lab -> Verify -> Pull Reques
 - Project labs are used for experiments before integration.
 - Pull requests are preferred for material changes.
 - Rollback information is mandatory for promoted updates.
+- Shared frontend tooling is deduplicated before installation and pinned to canonical upstream sources.
+
+## Shared frontend design stack
+
+<p align="center">
+  <img src="../../assets/branding/sazan-frontend-design-stack-logo.webp" alt="Sazan Frontend Design Stack logo" width="320">
+</p>
+
+
+The canonical UI stack is defined in `frontend-design-stack.yml`.
+
+Its default flow is:
+
+Anthropic Frontend Design -> selected Taste Skill specialists -> project DESIGN.md -> Vercel Web Design Guidelines -> Playwright CLI verification.
+
+Awesome Design MD is reference-only. Image-to-code is consumed from Taste Skill rather than installed as a duplicate standalone skill.
+
+Use `frontend-quality-gate.md` for acceptance criteria and `templates/SAZAN_UI_DESIGN_BRIEF.md` when bootstrapping a project-specific design contract.
 
 ## Initial integration targets
 
@@ -35,3 +53,4 @@ The steward is intended to coordinate with:
 6. Security inspection checklist.
 7. Lab runner adapters.
 8. Pull-request report generation.
+9. Frontend design stack candidate lab and cross-project rollout.

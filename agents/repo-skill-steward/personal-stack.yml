@@ -1,6 +1,6 @@
 version: 1
 name: sazan-personal-repo-skill-stack
-verified_at: 2026-09-25
+verified_at: 2026-10-03
 
 global_skills:
   - name: agent-skill-stack
@@ -21,6 +21,18 @@ global_skills:
     status: static-review-passed
     purpose: repository health, dependency, CI, documentation, and hygiene audits
 
+frontend_design_stack:
+  manifest: agents/repo-skill-steward/frontend-design-stack.yml
+  quality_gate: agents/repo-skill-steward/frontend-quality-gate.md
+  design_brief_template: agents/repo-skill-steward/templates/SAZAN_UI_DESIGN_BRIEF.md
+  install_policy: deduplicate-and-pin
+  components:
+    - anthropic-frontend-design
+    - taste-skill-selected-subskills
+    - vercel-web-design-guidelines
+    - awesome-design-md-reference-only
+    - playwright-cli-after-lab
+
 cli_tools:
   - name: skills
     source: vercel-labs/skills
@@ -40,6 +52,13 @@ optional_cli_tools:
     status: digest-smoke-passed
     install_policy: pinned-release-with-sha256-verification-only
     purpose: centralized personal registry shared across multiple agent clients
+
+  - name: playwright-cli
+    source: microsoft/playwright-cli
+    version: 0.1.22
+    status: provenance-verified-lab-required
+    install_policy: pinned-version-after-lab
+    purpose: browser verification, screenshots, and frontend flow validation
 
 repository_policy:
   auto_discover: true

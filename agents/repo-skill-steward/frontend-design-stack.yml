@@ -1,0 +1,133 @@
+version: 1
+name: sazan-frontend-design-stack
+verified_at: 2026-10-03
+owner: repo-skill-steward
+
+purpose: >
+  Shared frontend design and verification stack for Sazan UI projects.
+  Prefer one coordinated stack over installing overlapping design skills independently.
+
+execution_order:
+  - stage: creative-direction
+    component: anthropic-frontend-design
+    required_when: frontend-or-ui-work
+  - stage: specialist-design
+    component: taste-skill
+    required_when: redesign-image-to-code-mobile-or-specialized-visual-work
+  - stage: project-contract
+    component: sazan-design-brief
+    required_when: frontend-or-ui-work
+  - stage: standards-audit
+    component: vercel-web-design-guidelines
+    required_when: web-ui
+  - stage: browser-verification
+    component: playwright-cli
+    required_when: runnable-web-ui
+  - stage: reference-only
+    component: awesome-design-md
+    required_when: inspiration-or-pattern-research
+
+components:
+  - name: anthropic-frontend-design
+    type: skill
+    canonical_repository: anthropics/claude-plugins-official
+    repository_commit: d182ca456ca09d31d139f7d3818d1d333b103cce
+    path: plugins/frontend-design/skills/frontend-design/SKILL.md
+    trust: high
+    status: canonical-source-verified
+    install_policy: claude-code-plugin-or-pinned-source
+    notes:
+      - primary creative-direction layer for Claude Code
+      - do not duplicate with another generic frontend-design skill when this is active
+
+  - name: taste-skill
+    type: skill-pack
+    canonical_repository: Leonxlnx/taste-skill
+    repository_commit: ce26fc25c0e5e8cab638f883de62d9a86ee5e45b
+    paths:
+      - skills/image-to-code-skill
+      - skills/minimalist-skill
+      - skills/redesign-skill
+      - skills/brandkit
+      - skills/imagegen-frontend-mobile
+      - skills/imagegen-frontend-web
+    trust: review
+    status: lab-passed
+    install_policy: selected-subskills-only-after-review
+    notes:
+      - image-to-code is already included; do not install a duplicate standalone copy
+      - repository includes scripts, so executable review is mandatory before promotion
+
+  - name: vercel-web-design-guidelines
+    type: vendored-guidelines
+    canonical_skill_repository: vercel-labs/agent-skills
+    canonical_skill_commit: 063bee94c3f4df8453406c830b0a7df0f2860278
+    upstream_guidelines_repository: vercel-labs/web-interface-guidelines
+    upstream_guidelines_commit: e3d624baaf29dc1fc645aff3e38f03e564d2d6b1
+    upstream_guidelines_path: command.md
+    upstream_guidelines_blob_sha: e1e8e3460db7c1440e34642c4f7b885185ca5366
+    local_path: agents/repo-skill-steward/vendor/vercel-web-interface-guidelines/command.md
+    license: MIT
+    trust: high
+    status: pinned-and-vendored
+    install_policy: local-copy-only
+    notes:
+      - upstream skill fetches mutable main-branch guidance, so Sazan does not execute that fetch path
+      - refresh the local copy only through steward review
+
+  - name: awesome-design-md
+    type: reference-library
+    canonical_repository: VoltAgent/awesome-design-md
+    repository_commit: f6961238d5cddcf8042a74a70fc400ec67181abb
+    path: design-md
+    trust: review
+    status: reference-approved
+    install_policy: no-executable-install
+    notes:
+      - reference library only
+      - do not treat its examples as Sazan brand rules
+
+  - name: playwright-cli
+    type: cli
+    canonical_repository: microsoft/playwright-cli
+    repository_commit: b85c7a736bb473bf55b584e54a09ffa698d6d871
+    package: "@playwright/cli"
+    observed_version: 0.1.22
+    trust: high
+    status: isolated-smoke-passed
+    install_policy: pinned-version-after-lab
+    notes:
+      - use for browser verification and screenshots
+      - do not globally install latest from an unpinned command in production automation
+
+sazan_ui_policy:
+  brand_inheritance:
+    mother_brand: SAZAN
+    require_child_identity: true
+    require_assets_branding_directory: true
+    require_readme_logo: true
+  theme:
+    app_ui_default: light-dark-system
+    respect_os_theme: true
+    allow_user_override: true
+    persist_user_choice: true
+  quality:
+    responsive_required: true
+    accessibility_required: true
+    keyboard_navigation_for_web: true
+    visible_focus_required: true
+    reduced_motion_respected: true
+    generic_ai_aesthetic_rejected: true
+  verification:
+    browser_smoke_required_for_web: true
+    screenshot_evidence_required_for_material_ui_changes: true
+    mobile_and_desktop_viewports_required: true
+    console_error_check_required: true
+
+security_policy:
+  canonical_source_required: true
+  pin_upstream_commit: true
+  no_runtime_remote_rules: true
+  executable_candidates_require_lab: true
+  no_secrets_in_design_artifacts: true
+  no_direct_main_updates: true
