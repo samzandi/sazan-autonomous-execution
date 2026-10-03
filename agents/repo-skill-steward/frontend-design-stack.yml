@@ -59,17 +59,21 @@ components:
       - repository includes scripts, so executable review is mandatory before promotion
 
   - name: vercel-web-design-guidelines
-    type: skill
-    canonical_repository: vercel-labs/agent-skills
-    repository_commit: 063bee94c3f4df8453406c830b0a7df0f2860278
-    path: skills/web-design-guidelines/SKILL.md
-    blob_sha: ceae92ab319216a68274168fba9b63b998b65997
+    type: vendored-guidelines
+    canonical_skill_repository: vercel-labs/agent-skills
+    canonical_skill_commit: 063bee94c3f4df8453406c830b0a7df0f2860278
+    upstream_guidelines_repository: vercel-labs/web-interface-guidelines
+    upstream_guidelines_commit: e3d624baaf29dc1fc645aff3e38f03e564d2d6b1
+    upstream_guidelines_path: command.md
+    upstream_guidelines_blob_sha: e1e8e3460db7c1440e34642c4f7b885185ca5366
+    local_path: agents/repo-skill-steward/vendor/vercel-web-interface-guidelines/command.md
+    license: MIT
     trust: high
-    status: canonical-source-verified
-    install_policy: pinned-source-only
+    status: pinned-and-vendored
+    install_policy: local-copy-only
     notes:
-      - never fetch mutable main-branch guidance at runtime for a production decision
-      - update only through steward review
+      - upstream skill fetches mutable main-branch guidance, so Sazan does not execute that fetch path
+      - refresh the local copy only through steward review
 
   - name: awesome-design-md
     type: reference-library
