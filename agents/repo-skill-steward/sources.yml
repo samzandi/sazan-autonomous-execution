@@ -25,6 +25,36 @@ skill_sources:
     trust: review
     action: sandbox-first
 
+  - name: anthropic-frontend-design
+    repository: anthropics/claude-plugins-official
+    purpose: canonical frontend visual-direction skill
+    trust: high
+    action: pinned-source-or-official-plugin
+
+  - name: taste-skill
+    repository: Leonxlnx/taste-skill
+    purpose: specialist design, redesign, brandkit, mobile, and image-to-code skills
+    trust: review
+    action: selected-subskills-sandbox-first
+
+  - name: vercel-web-design-guidelines
+    repository: vercel-labs/agent-skills
+    purpose: web UI standards and accessibility review
+    trust: high
+    action: pinned-source-only
+
+  - name: awesome-design-md
+    repository: VoltAgent/awesome-design-md
+    purpose: design reference library
+    trust: review
+    action: reference-only
+
+  - name: playwright-cli
+    repository: microsoft/playwright-cli
+    purpose: token-efficient browser verification for coding agents
+    trust: high
+    action: pinned-version-sandbox-first
+
 update_sources:
   - name: renovate
     repository: renovatebot/renovate
@@ -39,3 +69,6 @@ rules:
   require_lab_test: true
   direct_main_updates: false
   persist_private_repo_inventory: false
+  deduplicate_frontend_skills: true
+  pin_frontend_guidance_sources: true
+  forbid_mutable_runtime_design_rules: true
