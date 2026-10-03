@@ -52,7 +52,7 @@ components:
       - skills/imagegen-frontend-mobile
       - skills/imagegen-frontend-web
     trust: review
-    status: provenance-verified-lab-required
+    status: lab-passed
     install_policy: selected-subskills-only-after-review
     notes:
       - image-to-code is already included; do not install a duplicate standalone copy
@@ -94,7 +94,7 @@ components:
     package: "@playwright/cli"
     observed_version: 0.1.22
     trust: high
-    status: provenance-verified-lab-required
+    status: isolated-smoke-passed
     install_policy: pinned-version-after-lab
     notes:
       - use for browser verification and screenshots
