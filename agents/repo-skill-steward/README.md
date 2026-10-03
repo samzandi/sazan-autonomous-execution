@@ -18,6 +18,11 @@ Inventory -> Discover -> Triage -> Security Gate -> Lab -> Verify -> Pull Reques
 
 ## Shared frontend design stack
 
+<p align="center">
+  <img src="../../assets/branding/sazan-frontend-design-stack-logo.webp" alt="Sazan Frontend Design Stack logo" width="320">
+</p>
+
+
 The canonical UI stack is defined in `frontend-design-stack.yml`.
 
 Its default flow is:
