@@ -155,8 +155,16 @@ candidates:
     repository: Leonxlnx/taste-skill
     repository_commit: ce26fc25c0e5e8cab638f883de62d9a86ee5e45b
     license: MIT
-    status: static-review-passed-lab-pending
+    status: lab-passed
     install_status: not-installed
+    lab_evidence:
+      workflow: Frontend Design Stack Candidate Lab
+      run_id: 37141115403
+      checks:
+        - pinned-commit-checkout
+        - selected-subskill-file-surface
+        - no-executable-sidecars-in-selected-paths
+      secrets_provided: false
     selected_paths:
       - skills/image-to-code-skill
       - skills/minimalist-skill
@@ -177,8 +185,16 @@ candidates:
     repository_commit: 063bee94c3f4df8453406c830b0a7df0f2860278
     blob_sha: ceae92ab319216a68274168fba9b63b998b65997
     license: MIT
-    status: upstream-runtime-fetch-replaced
+    status: pinned-vendored-verified
     install_status: not-installed
+    lab_evidence:
+      workflow: Frontend Design Stack Candidate Lab
+      run_id: 37141115403
+      checks:
+        - vendored-git-blob-match
+        - pinned-upstream-provenance
+        - mutable-runtime-fetch-disabled
+      secrets_provided: false
     security_observations:
       mutable_runtime_fetch_present: true
       sazan_runtime_policy: vendored-pinned-guidelines-only
@@ -202,8 +218,18 @@ candidates:
     package_version_observed: 0.1.22
     repository_commit: b85c7a736bb473bf55b584e54a09ffa698d6d871
     license: Apache-2.0
-    status: isolated-lab-pending
+    status: isolated-smoke-passed
     install_status: not-installed
+    lab_evidence:
+      workflow: Frontend Design Stack Candidate Lab
+      run_id: 37141115403
+      checks:
+        - pinned-package-version
+        - npm-lifecycle-scripts-disabled
+        - cli-help-smoke
+        - isolated-agent-skill-install
+        - no-project-mutation
+      secrets_provided: false
     security_observations:
       npm_install_mode: ignore-scripts
       browser_install_not_authorized_by-smoke: true
