@@ -28,9 +28,12 @@ The policy is internally consistent against the initial static behavioral scenar
 - Created: YES
 - Implemented: YES
 - Static policy verification: PASS
-- Real agent/runtime integration test: NOT YET EXECUTED
+- Repository-wide deterministic integration tests: PASS where represented by current CI evidence
+- Live Codex runtime proof: BLOCKED/UNVERIFIED pending successful credentialed workflow
+- Live Claude Code runtime proof: BLOCKED/UNVERIFIED pending successful credentialed workflow
+- C003 release-readiness gate implementation: PASS; current stable-release verdict remains BLOCKED until required live evidence exists
 - Production-ready: NO
 
 ## Remaining release evidence
 
-Run at least one real multi-step task under this policy in a supported agent environment and capture evidence that the agent continues, verifies, recovers if needed, and only escalates for a genuine blocker.
+Complete the required credentialed live runtime proofs and preserve their independent validation evidence. Do not bypass a failed or missing provider proof; the release-readiness gate must remain fail-closed until all required evidence is verified.
