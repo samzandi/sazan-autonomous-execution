@@ -1,0 +1,70 @@
+name: Open Source CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.py"
+      - "LICENSE"
+      - "README.md"
+      - "SECURITY.md"
+      - "CONTRIBUTING.md"
+      - "CHANGELOG.md"
+      - "MAINTAINERS.md"
+      - "docs/**"
+      - "tests/**"
+      - ".github/workflows/oss-ci.yml"
+  pull_request:
+    paths:
+      - "**.py"
+      - "LICENSE"
+      - "README.md"
+      - "SECURITY.md"
+      - "CONTRIBUTING.md"
+      - "CHANGELOG.md"
+      - "MAINTAINERS.md"
+      - "docs/**"
+      - "tests/**"
+      - ".github/workflows/oss-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile Python sources without filesystem side effects
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for path in Path("agents").rglob("*.py"):
+              compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          PY
+
+      - name: Run maintained test suite
+        run: python -m unittest discover -s tests -p 'test_*.py'
+
+      - name: Verify open-source health files
+        run: |
+          test -s LICENSE
+          test -s CONTRIBUTING.md
+          test -s SECURITY.md
+          test -s CODE_OF_CONDUCT.md
+          test -s MAINTAINERS.md
+          test -s CHANGELOG.md
+          test -s docs/RELEASE_CHECKLIST.md
