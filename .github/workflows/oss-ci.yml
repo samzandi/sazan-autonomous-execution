@@ -34,6 +34,8 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
@@ -46,9 +48,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Compile Python sources
+      - name: Compile Python sources without filesystem side effects
         run: |
-          find agents -name '*.py' -print0 | xargs -0 -r python -m py_compile
+          python - <<'PY'
+          from pathlib import Path
+          for path in Path("agents").rglob("*.py"):
+              compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          PY
 
       - name: Run maintained test suite
         run: python -m unittest discover -s tests -p 'test_*.py'
