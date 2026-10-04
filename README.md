@@ -29,4 +29,10 @@ Use `ESCALATE` only for genuine human-required blockers.
 
 ## Status
 
-Initial implementation. No production-ready claim without validation evidence.
+Active pre-1.0 development. Deterministic repository-intelligence and release-readiness gates are implemented and exercised in CI. Live provider runtime proofs remain explicit release blockers until their credentialed workflows pass. No production-ready claim is made without environment-specific validation evidence.
+
+## Open-source maintenance
+
+This repository is licensed under the MIT License. See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [MAINTAINERS.md](MAINTAINERS.md), and [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) before contributing or preparing a release.
+
+Repository activity is evidence-driven: tests, issues, pull requests, runtime proofs, and releases must reflect real work. Failed or credential-blocked runtime proofs remain visible blockers instead of being converted into success claims.
