@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "context": "C003",
+  "candidate": {
+    "name": "Sazan Repository Intelligence stable release",
+    "channel": "stable"
+  },
+  "gates": {
+    "c002_complete": {
+      "status": "verified",
+      "evidence": [
+        "git:merge:5e26e4f792a54a4739eba1c1d748868fa105c6ee",
+        "github-actions:36764817135"
+      ]
+    },
+    "codex_runtime": {
+      "status": "blocked",
+      "evidence": [
+        "github-actions:36766115291"
+      ],
+      "blockers": [
+        "OpenAI API quota exhausted before live Codex proof could complete"
+      ]
+    },
+    "claude_runtime": {
+      "status": "blocked",
+      "evidence": [
+        "github-actions:36767883113"
+      ],
+      "blockers": [
+        "Claude runtime authentication is not configured"
+      ]
+    },
+    "live_provider_parity": {
+      "status": "blocked",
+      "evidence": [
+        "github-actions:36768157558"
+      ],
+      "blockers": [
+        "live parity cannot be verified until both Codex and Claude runtime proofs are verified on the same revision and baseline"
+      ]
+    },
+    "failure_rollback": {
+      "status": "verified",
+      "evidence": [
+        "github-actions:36769117578",
+        "git:merge:029bfb6e4d03c47013121fa78f0025e88c0dc9f4"
+      ]
+    },
+    "reproducibility": {
+      "status": "verified",
+      "evidence": [
+        "github-actions:36770061102",
+        "git:merge:05b96dcb94c914450ce1a6478eb7476a7b196f5a"
+      ]
+    },
+    "security": {
+      "status": "verified",
+      "evidence": [
+        "policy:C002-security-and-provider-gates",
+        "lab:C003-read-only-runtime-contracts"
+      ]
+    },
+    "privacy": {
+      "status": "verified",
+      "evidence": [
+        "policy:no-private-repository-identity-persistence",
+        "lab:C002-private-identity-redaction"
+      ]
+    },
+    "license": {
+      "status": "verified",
+      "evidence": [
+        "policy:integration-mode-license-gate",
+        "policy:Serena-1.7.0-MIT-pin"
+      ]
+    },
+    "verifier": {
+      "status": "verified",
+      "evidence": [
+        "policy:parent-steward-final-authority",
+        "policy:auto-promotion-disabled"
+      ]
+    }
+  },
+  "open_blockers": [
+    "Codex live runtime proof is blocked by OpenAI API quota",
+    "Claude Code live runtime proof is blocked by missing runtime authentication",
+    "live cross-provider parity is not yet verified"
+  ]
+}

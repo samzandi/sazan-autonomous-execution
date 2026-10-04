@@ -1,0 +1,102 @@
+name: Repository Intelligence C003 Release Readiness Lab
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/repository-intelligence-c003-release-readiness-lab.yml"
+      - "agents/repo-skill-steward/repository-intelligence/C003_RELEASE_READINESS.md"
+      - "agents/repo-skill-steward/repository-intelligence/release/**"
+      - "agents/repo-skill-steward/repository-intelligence/scripts/release_readiness.py"
+      - "tests/test_repository_intelligence_c003_release_readiness.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Syntax-check release evaluator without filesystem side effects
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("agents/repo-skill-steward/repository-intelligence/scripts/release_readiness.py")
+          compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          PY
+
+      - name: Run release readiness contract tests
+        run: python3 -m unittest tests/test_repository_intelligence_c003_release_readiness.py
+
+      - name: Evaluate current C003 release evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="agents/repo-skill-steward/repository-intelligence"
+          python3 "$base/scripts/release_readiness.py"             "$base/release/c003_release_readiness_evidence.json"             --json "$RUNNER_TEMP/release-readiness.json"             --markdown "$RUNNER_TEMP/release-readiness.md"
+
+          python3 - "$RUNNER_TEMP/release-readiness.json" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          result = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          assert result["decision"] == "blocked"
+          assert result["ready"] is False
+          assert result["auto_release"] is False
+          assert result["parent_release_approval_required"] is False
+          blockers = "\n".join(result["blockers"])
+          assert "codex_runtime" in blockers
+          assert "claude_runtime" in blockers
+          assert "live_provider_parity" in blockers
+          PY
+
+      - name: Prove ready fixture still requires parent approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util
+          import pathlib
+
+          path = pathlib.Path("agents/repo-skill-steward/repository-intelligence/scripts/release_readiness.py")
+          spec = importlib.util.spec_from_file_location("rr", path)
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+
+          package = {
+              "schema_version": 1,
+              "context": "C003",
+              "candidate": {"name": "fixture", "channel": "stable"},
+              "gates": {
+                  name: {"status": "verified", "evidence": [f"fixture:{name}"]}
+                  for name in mod.REQUIRED_GATES
+              },
+              "open_blockers": [],
+          }
+          result = mod.evaluate(package)
+          assert result["decision"] == "eligible-for-parent-release-review"
+          assert result["ready"] is True
+          assert result["auto_release"] is False
+          assert result["parent_release_approval_required"] is True
+          PY
+
+      - name: Publish release readiness evidence
+        shell: bash
+        run: |
+          {
+            echo "## C003 Release Readiness Gate"
+            echo
+            echo "- Gate engine contract tests passed."
+            echo "- Ready fixture remains parent-review-only and never auto-releases."
+            echo "- Current C003 release verdict is correctly BLOCKED."
+            echo "- Codex runtime, Claude runtime, and live parity remain mandatory release gates."
+            echo "- Verified rollback and reproducibility evidence do not override missing live-runtime proof."
+          } >> "$GITHUB_STEP_SUMMARY"

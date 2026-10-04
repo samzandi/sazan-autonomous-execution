@@ -126,3 +126,38 @@ Model:
 - a canonical pack fingerprint detects evidence drift.
 
 Status: VERIFIED / PROMOTED — deterministic reproducibility run 36770061102 passed; byte-identical pack generation, manifest validation, core reproduction commands, and all repository regressions passed.
+
+
+## Milestone 6 — Release readiness evidence gate
+
+Implementation:
+- `release/c003_release_readiness_evidence.json`;
+- `scripts/release_readiness.py`;
+- `tests/test_repository_intelligence_c003_release_readiness.py`;
+- `C003_RELEASE_READINESS.md`;
+- `.github/workflows/repository-intelligence-c003-release-readiness-lab.yml`.
+
+Required stable-release gates:
+- C002 complete;
+- Codex live runtime verified;
+- Claude Code live runtime verified;
+- live provider parity verified;
+- failure/rollback verified;
+- reproducibility verified;
+- security verified;
+- privacy verified;
+- license verified;
+- verifier verified;
+- no open blockers.
+
+Safety:
+- evaluator is fail closed;
+- evidence is required for every gate;
+- a verified gate may not contain blockers;
+- non-verified gates must explain their blocker;
+- `auto_release` is always false;
+- the strongest successful machine result is only `eligible-for-parent-release-review`.
+
+Current release verdict: BLOCKED — Codex runtime, Claude runtime, and live provider parity are not yet verified.
+
+Engine status: VERIFIED / PROMOTED — release-readiness run 36770593359 passed; all repository regressions passed.
