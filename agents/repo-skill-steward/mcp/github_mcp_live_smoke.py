@@ -187,6 +187,23 @@ def run_live_smoke(
     runtime = launcher.prepare_runtime_environment(profile)
     payload = build_messages(owner, repo, ref, path)
 
+    # Pull before opening the stdio session. Otherwise image download time can
+    # consume the grace period and EOF may reach the server before it starts.
+    try:
+        pull = subprocess.run(
+            ["docker", "pull", profile["image"]],
+            text=True,
+            capture_output=True,
+            timeout=180,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("GitHub MCP image pull timed out") from exc
+    if pull.returncode != 0:
+        raise RuntimeError(
+            f"GitHub MCP image pull failed: {pull.stderr[-4000:]}"
+        )
+
     process = subprocess.Popen(
         command,
         stdin=subprocess.PIPE,
@@ -201,7 +218,7 @@ def run_live_smoke(
 
     # Match the upstream conformance harness: keep stdin open briefly so the
     # stdio server can emit responses before EOF triggers graceful shutdown.
-    time.sleep(1.0)
+    time.sleep(1.5)
     process.stdin.close()
     process.stdin = None
 
