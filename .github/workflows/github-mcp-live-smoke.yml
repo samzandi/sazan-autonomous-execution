@@ -1,0 +1,43 @@
+name: GitHub MCP Live Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agents/repo-skill-steward/mcp/**"
+      - ".sazan/**"
+      - ".github/workflows/github-mcp-live-smoke.yml"
+  pull_request:
+    paths:
+      - "agents/repo-skill-steward/mcp/**"
+      - ".sazan/**"
+      - ".github/workflows/github-mcp-live-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SAZAN_GITHUB_TOKEN: ${{ github.token }}
+      SAZAN_MCP_SMOKE_REPOSITORY: ${{ github.repository }}
+      SAZAN_MCP_SMOKE_REF: ${{ github.event.pull_request.base.ref || github.ref_name }}
+      SAZAN_MCP_SMOKE_PATH: .sazan/guardian.yml
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify Docker runtime
+        run: docker version
+
+      - name: Run credentialed GitHub MCP smoke proof
+        run: python agents/repo-skill-steward/mcp/github_mcp_live_smoke.py
