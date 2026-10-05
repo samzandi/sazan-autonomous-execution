@@ -12,6 +12,7 @@ on:
       - "CHANGELOG.md"
       - "MAINTAINERS.md"
       - "docs/**"
+      - "agents/repo-skill-steward/mcp/**"
       - "tests/**"
       - ".github/workflows/oss-ci.yml"
   pull_request:
@@ -24,6 +25,7 @@ on:
       - "CHANGELOG.md"
       - "MAINTAINERS.md"
       - "docs/**"
+      - "agents/repo-skill-steward/mcp/**"
       - "tests/**"
       - ".github/workflows/oss-ci.yml"
   workflow_dispatch:
@@ -58,6 +60,9 @@ jobs:
 
       - name: Run maintained test suite
         run: python -m unittest discover -s tests -p 'test_*.py'
+
+      - name: Verify guarded GitHub MCP profile
+        run: python agents/repo-skill-steward/mcp/github_mcp_launcher.py --dry-run
 
       - name: Verify open-source health files
         run: |
