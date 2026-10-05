@@ -75,4 +75,8 @@ A write-capable profile must never be created by silently changing this read-onl
 
 Repository tests verify the configuration, pinning, allowlist, secret handling, and fail-closed behavior without requiring a real credential.
 
-A production/runtime-ready claim additionally requires a credentialed proof against the intended deployment environment and verification that the exposed MCP tools match the approved read-only surface.
+The repository also includes `.github/workflows/github-mcp-live-smoke.yml`. This workflow uses the short-lived GitHub Actions token with `contents: read` only. It validates that the credential can read the current repository, starts the pinned official Docker image with the guarded read-only and lockdown profile, completes MCP initialization, inspects `tools/list`, rejects known write-capable tools, and calls `get_file_contents` against `.sazan/guardian.yml`.
+
+The workflow never stores a long-lived personal token and the smoke script redacts the runtime credential from failure output.
+
+A production/runtime-ready claim requires this credentialed workflow to pass for the exact profile and release being promoted.
