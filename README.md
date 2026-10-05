@@ -22,6 +22,12 @@ The execution layer now includes a pinned, fail-closed launcher for the official
 
 See `docs/GITHUB-MCP-INTEGRATION.md`.
 
+## Playwright MCP provider
+
+The browser layer includes a pinned `@playwright/mcp@0.0.83` observe-mode provider behind a SAZAN stdio guard proxy. The proxy filters the upstream tool inventory, blocks action-capable tools by default, disables WebMCP and optional high-risk capability sets, uses isolated browser state, and denies local/private network targets unless a test-only runtime override is explicitly enabled.
+
+See `docs/PLAYWRIGHT-MCP-INTEGRATION.md`.
+
 ## Repository structure
 
 - `assets/branding/` — repository-specific Sazan child-brand assets

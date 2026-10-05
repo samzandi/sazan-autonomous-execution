@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "playwright-observe",
+  "provider": "Microsoft",
+  "source": {
+    "repository": "microsoft/playwright-mcp",
+    "official": true
+  },
+  "release": "v0.0.83",
+  "package": "@playwright/mcp@0.0.83",
+  "mode": "observe",
+  "runtime": "npx",
+  "browser": "chrome",
+  "headless": true,
+  "isolated": true,
+  "sandbox": true,
+  "webmcp": false,
+  "image_responses": "omit",
+  "codegen": "none",
+  "additional_caps": [],
+  "allow_local_network": false,
+  "allowed_tools": [
+    "browser_console_messages",
+    "browser_find",
+    "browser_navigate",
+    "browser_network_request",
+    "browser_network_requests",
+    "browser_snapshot",
+    "browser_take_screenshot",
+    "browser_get_config",
+    "browser_cookie_get",
+    "browser_cookie_list",
+    "browser_localstorage_get",
+    "browser_localstorage_list",
+    "browser_sessionstorage_get",
+    "browser_sessionstorage_list"
+  ],
+  "action_authority": "disabled",
+  "destructive_authority": "disabled"
+}

@@ -6,8 +6,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import queue
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 from pathlib import Path
@@ -59,6 +61,48 @@ def parse_jsonrpc_lines(output: str) -> list[dict[str, Any]]:
             continue
         if isinstance(value, dict) and value.get("jsonrpc") == "2.0":
             responses.append(value)
+    return responses
+
+
+def _stdout_pump(
+    stream: Any,
+    messages: "queue.Queue[dict[str, Any]]",
+) -> None:
+    for raw_line in stream:
+        parsed = parse_jsonrpc_lines(raw_line)
+        for message in parsed:
+            messages.put(message)
+
+
+def _stderr_pump(stream: Any, lines: list[str]) -> None:
+    for line in stream:
+        lines.append(line)
+
+
+def wait_for_responses(
+    messages: "queue.Queue[dict[str, Any]]",
+    response_ids: set[int],
+    timeout: float = 60.0,
+) -> list[dict[str, Any]]:
+    deadline = time.monotonic() + timeout
+    pending = set(response_ids)
+    responses: list[dict[str, Any]] = []
+    while pending:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError(
+                f"timed out waiting for MCP response ids={sorted(pending)}"
+            )
+        try:
+            message = messages.get(timeout=remaining)
+        except queue.Empty as exc:
+            raise RuntimeError(
+                f"timed out waiting for MCP response ids={sorted(pending)}"
+            ) from exc
+        responses.append(message)
+        response_id = message.get("id")
+        if isinstance(response_id, int):
+            pending.discard(response_id)
     return responses
 
 
@@ -211,37 +255,63 @@ def run_live_smoke(
         stderr=subprocess.PIPE,
         text=True,
         env=runtime,
+        bufsize=1,
     )
     assert process.stdin is not None
+    assert process.stdout is not None
+    assert process.stderr is not None
+
+    messages: "queue.Queue[dict[str, Any]]" = queue.Queue()
+    stderr_lines: list[str] = []
+    stdout_thread = threading.Thread(
+        target=_stdout_pump,
+        args=(process.stdout, messages),
+        daemon=True,
+    )
+    stderr_thread = threading.Thread(
+        target=_stderr_pump,
+        args=(process.stderr, stderr_lines),
+        daemon=True,
+    )
+    stdout_thread.start()
+    stderr_thread.start()
+
     process.stdin.write(payload)
     process.stdin.flush()
 
-    # Match the upstream conformance harness: keep stdin open briefly so the
-    # stdio server can emit responses before EOF triggers graceful shutdown.
-    time.sleep(1.5)
+    try:
+        responses = wait_for_responses(messages, {1, 2, 3}, timeout=90.0)
+    except Exception:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        stderr_thread.join(timeout=1)
+        safe_stderr = redact("".join(stderr_lines)[-4000:], token)
+        if safe_stderr:
+            sys.stderr.write(safe_stderr)
+        raise
+
     process.stdin.close()
     process.stdin = None
 
     try:
-        stdout, stderr = process.communicate(timeout=120)
+        process.wait(timeout=30)
     except subprocess.TimeoutExpired as exc:
         process.kill()
-        process.communicate()
-        raise RuntimeError("GitHub MCP live smoke timed out") from exc
+        process.wait()
+        raise RuntimeError("GitHub MCP live smoke timed out during shutdown") from exc
+
+    stdout_thread.join(timeout=1)
+    stderr_thread.join(timeout=1)
+    stderr = "".join(stderr_lines)
 
     if process.returncode != 0:
         safe_stderr = redact(stderr[-4000:], token)
         raise RuntimeError(
             f"GitHub MCP container exited with {process.returncode}: {safe_stderr}"
-        )
-
-    responses = parse_jsonrpc_lines(stdout)
-    if not responses:
-        safe_stdout = redact(stdout[-4000:], token)
-        safe_stderr = redact(stderr[-4000:], token)
-        raise RuntimeError(
-            "GitHub MCP emitted no JSON-RPC responses; "
-            f"stdout={safe_stdout!r} stderr={safe_stderr!r}"
         )
     initialize = _response_by_id(responses, 1)
     if "error" in initialize or not isinstance(initialize.get("result"), dict):
