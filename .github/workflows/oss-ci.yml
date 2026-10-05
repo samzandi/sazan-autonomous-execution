@@ -66,6 +66,9 @@ jobs:
       - name: Verify guarded GitHub MCP profile
         run: python agents/repo-skill-steward/mcp/github_mcp_launcher.py --dry-run
 
+      - name: Verify governed Playwright MCP profile
+        run: python agents/repo-skill-steward/mcp/playwright_mcp_proxy.py --dry-run
+
       - name: Verify open-source health files
         run: |
           test -s LICENSE
@@ -75,3 +78,27 @@ jobs:
           test -s MAINTAINERS.md
           test -s CHANGELOG.md
           test -s docs/RELEASE_CHECKLIST.md
+
+
+  playwright-mcp-live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Verify Chrome
+        run: google-chrome --version
+
+      - name: Run governed Playwright MCP browser proof
+        run: python agents/repo-skill-steward/mcp/playwright_mcp_live_smoke.py
