@@ -1,0 +1,13 @@
+project: sazan-autonomous-execution
+artifact_type: skill
+
+gates:
+  supervisor: true
+  visual_qa: false
+  install_qa: false
+
+commands:
+  test:
+    - python -m unittest discover -s tests -p 'test_*.py'
+  verify:
+    - python agents/repo-skill-steward/mcp/github_mcp_launcher.py --dry-run
