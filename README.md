@@ -16,11 +16,18 @@ Do not stop just because a substep finished. Continue through every safe and ava
 
 Use `ESCALATE` only for genuine human-required blockers.
 
+## GitHub MCP provider
+
+The execution layer now includes a pinned, fail-closed launcher for the official GitHub MCP Server. Its baseline profile is read-only, enables lockdown mode, exposes only the approved repository/PR/issue/actions/security toolsets, and takes credentials only from the runtime environment.
+
+See `docs/GITHUB-MCP-INTEGRATION.md`.
+
 ## Repository structure
 
 - `assets/branding/` — repository-specific Sazan child-brand assets
 - `SKILL.md` — reusable execution policy
 - `AGENTS.md` — repository-level agent instructions
+- `agents/repo-skill-steward/mcp/` — governed MCP execution profiles and launchers
 - `docs/execution-model.md` — state machine and control flow
 - `docs/stop-conditions.md` — precise escalation rules
 - `docs/evidence-and-validation.md` — evidence gates and completion semantics

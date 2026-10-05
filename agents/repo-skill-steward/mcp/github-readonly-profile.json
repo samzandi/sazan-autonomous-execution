@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "github-readonly",
+  "provider": "GitHub",
+  "source": {
+    "repository": "github/github-mcp-server",
+    "official": true
+  },
+  "release": "v1.14.0",
+  "image": "ghcr.io/github/github-mcp-server:v1.14.0",
+  "access_mode": "read_only",
+  "lockdown": true,
+  "toolsets": [
+    "context",
+    "repos",
+    "pull_requests",
+    "issues",
+    "actions",
+    "code_security",
+    "secret_protection"
+  ],
+  "token_source_env": "SAZAN_GITHUB_TOKEN",
+  "container_token_env": "GITHUB_PERSONAL_ACCESS_TOKEN",
+  "server_name": "sazan-github-readonly",
+  "write_authority": "disabled",
+  "destructive_authority": "disabled"
+}
