@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added a pinned Context7 MCP read-only provider with environment sanitization, credential-query guarding, live documentation proof, and Guardian verification.
 - Added a pinned Playwright MCP observe provider with a fail-closed stdio guard proxy, private-network blocking, live browser proof, and Guardian verification.
 - Added a pinned read-only GitHub MCP execution profile, fail-closed launcher, security documentation, and regression tests.
 - Added explicit open-source license and community-health documentation.
