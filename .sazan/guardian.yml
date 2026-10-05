@@ -12,3 +12,4 @@ commands:
   verify:
     - python agents/repo-skill-steward/mcp/github_mcp_launcher.py --dry-run
     - python agents/repo-skill-steward/mcp/playwright_mcp_proxy.py --dry-run
+    - python agents/repo-skill-steward/mcp/context7_mcp_proxy.py --dry-run

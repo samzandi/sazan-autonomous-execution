@@ -28,6 +28,12 @@ The browser layer includes a pinned `@playwright/mcp@0.0.83` observe-mode provid
 
 See `docs/PLAYWRIGHT-MCP-INTEGRATION.md`.
 
+## Context7 MCP provider
+
+The documentation layer includes a pinned `@upstash/context7-mcp@4.1.1` provider behind a SAZAN read-only stdio guard. The guard exposes exactly `resolve-library-id` and `query-docs`, sanitizes the child-process environment, keeps the optional API key out of command arguments, disables local OpenTelemetry instrumentation, and blocks common credential/key patterns before a documentation query leaves SAZAN.
+
+See `docs/CONTEXT7-MCP-INTEGRATION.md`.
+
 ## Repository structure
 
 - `assets/branding/` — repository-specific Sazan child-brand assets

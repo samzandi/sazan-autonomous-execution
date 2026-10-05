@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "context7-readonly",
+  "provider": "Upstash",
+  "source": {
+    "repository": "upstash/context7",
+    "official": true
+  },
+  "release": "@upstash/context7-mcp@4.1.1",
+  "package": "@upstash/context7-mcp@4.1.1",
+  "transport": "stdio",
+  "allowed_tools": [
+    "resolve-library-id",
+    "query-docs"
+  ],
+  "token_source_env": "SAZAN_CONTEXT7_API_KEY",
+  "container_token_env": "CONTEXT7_API_KEY",
+  "max_query_chars": 2000,
+  "action_authority": "disabled",
+  "destructive_authority": "disabled"
+}
