@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -186,26 +187,45 @@ def run_live_smoke(
     runtime = launcher.prepare_runtime_environment(profile)
     payload = build_messages(owner, repo, ref, path)
 
+    process = subprocess.Popen(
+        command,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=runtime,
+    )
+    assert process.stdin is not None
+    process.stdin.write(payload)
+    process.stdin.flush()
+
+    # Match the upstream conformance harness: keep stdin open briefly so the
+    # stdio server can emit responses before EOF triggers graceful shutdown.
+    time.sleep(1.0)
+    process.stdin.close()
+    process.stdin = None
+
     try:
-        completed = subprocess.run(
-            command,
-            input=payload,
-            text=True,
-            capture_output=True,
-            env=runtime,
-            timeout=120,
-            check=False,
-        )
+        stdout, stderr = process.communicate(timeout=120)
     except subprocess.TimeoutExpired as exc:
+        process.kill()
+        process.communicate()
         raise RuntimeError("GitHub MCP live smoke timed out") from exc
 
-    if completed.returncode != 0:
-        safe_stderr = redact(completed.stderr[-4000:], token)
+    if process.returncode != 0:
+        safe_stderr = redact(stderr[-4000:], token)
         raise RuntimeError(
-            f"GitHub MCP container exited with {completed.returncode}: {safe_stderr}"
+            f"GitHub MCP container exited with {process.returncode}: {safe_stderr}"
         )
 
-    responses = parse_jsonrpc_lines(completed.stdout)
+    responses = parse_jsonrpc_lines(stdout)
+    if not responses:
+        safe_stdout = redact(stdout[-4000:], token)
+        safe_stderr = redact(stderr[-4000:], token)
+        raise RuntimeError(
+            "GitHub MCP emitted no JSON-RPC responses; "
+            f"stdout={safe_stdout!r} stderr={safe_stderr!r}"
+        )
     initialize = _response_by_id(responses, 1)
     if "error" in initialize or not isinstance(initialize.get("result"), dict):
         raise RuntimeError("MCP initialize failed")
