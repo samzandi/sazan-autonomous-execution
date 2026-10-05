@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added a pinned read-only GitHub MCP execution profile, fail-closed launcher, security documentation, and regression tests.
 - Added explicit open-source license and community-health documentation.
 - Added repository-wide CI for the maintained Python test suite.
 - Added structured issue and pull-request templates.
